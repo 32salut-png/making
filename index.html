@@ -2044,6 +2044,17 @@ async function checkMailbox() {
   if (msgs.length) toast(msgs.join("\n"));
   if (earned > 0 || msgs.length) { savePlayer(); updateInfo(); }
 }
+let socialSyncTimer = 0;
+function scheduleSocialSync(delay = null) {
+  clearTimeout(socialSyncTimer);
+  const wait = delay ?? (isActiveTime() ? 45 * 1000 : 10 * 60 * 1000);
+  socialSyncTimer = setTimeout(async () => {
+    socialSyncTimer = 0;
+    await syncAllianceAndVassal();
+    await checkMailbox();
+    scheduleSocialSync();
+  }, wait);
+}
 
 // ===== ボタンバインド =====
 $("btnHome").onclick = goHome;
@@ -2160,7 +2171,7 @@ setInterval(() => {
   updateInfo();
   if ($("ideoModal").classList.contains("show")) renderIdeoModal();
 }, 1000);
-setInterval(() => { syncAllianceAndVassal(); checkMailbox(); }, 5000);
+scheduleSocialSync(5 * 1000);
 setInterval(() => { autoEventTick(); }, 45000);
 </script>
 </body>
