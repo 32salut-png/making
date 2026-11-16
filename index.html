@@ -24,8 +24,12 @@
   .wealth-row > div + div { border-left:1px solid rgba(255,255,255,.15); padding-left:10px; }
   .card.res .v { font-size:12px; display:flex; gap:5px; }
   .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
-  #nextH .countdown-digit.tick { animation:countdownDigitTick .2s ease-out; display:inline-block; }
-  @keyframes countdownDigitTick { 0% { opacity:.45; transform:translateY(-2px); } 100% { opacity:1; transform:translateY(0); } }
+  .countdown-digit.tick { animation:countdownDigitTick .55s cubic-bezier(.2,.8,.2,1); display:inline-block; color:var(--cyan); text-shadow:0 0 7px currentColor; }
+  @keyframes countdownDigitTick {
+    0% { opacity:.2; transform:translateY(-5px) scale(1.25); }
+    45% { opacity:1; transform:translateY(1px) scale(.92); }
+    100% { opacity:1; transform:translateY(0) scale(1); }
+  }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
   #name { font-size:12px; font-weight:800; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .sp { flex:1; }
