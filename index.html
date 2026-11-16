@@ -2149,7 +2149,15 @@ async function renderRank() {
 if (myName === "のむのむ") {
   const b1 = document.createElement("button"); b1.className = "ib neon gold"; b1.textContent = "🛠️"; b1.title = "管理者メニュー";
   b1.onclick = async () => {
-    if (confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
+    if (confirm("本当に全初期化しますか？")) {
+      const res = await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" });
+      if (!res.ok) return toast("全初期化に失敗しました");
+      await new Promise(resolve => {
+        const req = indexedDB.deleteDatabase(CACHE_DB);
+        req.onsuccess = req.onerror = req.onblocked = resolve;
+      });
+      location.reload();
+    }
   };
   $("top").appendChild(b1);
 }
