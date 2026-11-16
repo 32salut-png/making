@@ -241,7 +241,7 @@
       <li><b>🛡️ 軍閥</b>: 防衛上限Lv5。3×3砲撃(CT3h/敵Lv1即奪取/敵高Lv-2/味方Lv+2)。<b>[対ゲリラ]</b> 自陣周囲2マス以内の飛び石・仮拠点禁止 ＆ <b>ゲリラからの攻撃コスト2倍</b> ＆ <b>仮拠点1マス奪取で残りを連鎖崩壊</b>。 </li>
       <li><b>⚡ ゲリラ</b>: 1マス空け(飛び石)配置＆補給維持。2×2仮拠点設営(CT4h・全滅で消滅)。<b>[対電脳]</b> 奪取時コスト返還+相手資産10%強奪。</li>
       <li><b>🔬 電脳</b>: 全員のデータ詳細を閲覧、アイテム効果時間+25%。1h分の報酬獲得＋同盟CT50%短縮(CT3h)。<b>[対工兵]</b> 半径5マスを2時間汚染し、改造結果をランダム化(CT6h)。</li>
-      <li><b>🏗️ 工兵</b>: 強化＆製造の素材25%減。好きな最大5マスを防壁(敵奪取+8🪙)や資源マスへ改造(CT4h)。<b>[対資本]</b> Lv引き継ぎ無効＆資本からの攻撃コスト2倍。</li>
+      <li><b>🏗️ 工兵</b>: 強化＆製造の素材25%減。好きな最大5マスを防壁(敵奪取+8🪙)や資源マスへ改造(CT4h)。<b>[対資本]</b> 十字5マスの中心に工作ドローンを置き、平均収入の50%を獲得。資本からの攻撃コスト2倍。</li>
     </ul>
 
     <div style="color:var(--cyan);font-weight:800">🔨 4. 兵器・バリア & 🎲 ランダムイベント</div>
@@ -350,7 +350,7 @@ const IDEOLOGIES = {
   military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
   guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:4*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
   cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーのデータ詳細を閲覧、アイテム効果時間+25%", aName:"データ加速", aDesc:"1時間分の報酬を獲得し、同盟メンバー全員の残りCTを50%短縮", aCT:3*HOUR, cName:"設計図汚染", cDesc:"半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)", cCT:6*HOUR },
-  engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cName:"工作ドローン", cDesc:"資本の金脈1マスに設置し、収入を50%ずつ分配", cCT:6*HOUR },
+  engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cName:"工作ドローン", cDesc:"資本の金脈を中心とする十字5マスの平均収入50%を獲得", cCT:6*HOUR },
 };
 const itemDuration = base => ideology === "cyber" ? Math.round(base * 1.25) : base;
 
@@ -580,8 +580,6 @@ function myResInc() {
     const l = lvl[i], mod = cellMods.get(i);
     if (coinMap[i] || (mod && mod.type === MOD_CAP_COIN)) {
       let coinInc = COIN_CELL_HOURLY + l;
-      const drone = getDroneAt(i);
-      if (drone) coinInc = Math.ceil(coinInc * 0.5);
       c += coinInc;
     }
     if (spec[i] === TYPE_WOOD || (mod && mod.type === MOD_WOOD)) w += RES_HOURLY + l;
@@ -592,7 +590,15 @@ function myResInc() {
   if (workDrone && workDrone.target && workDrone.until > srvNow()) {
     const droneIdx = workDrone.y * N + workDrone.x;
     if (grid[droneIdx] === (idMap.get(workDrone.target) || 0) && (coinMap[droneIdx] || cellMods.get(droneIdx)?.type === MOD_CAP_COIN)) {
-      c += Math.floor((COIN_CELL_HOURLY + lvl[droneIdx]) * 0.5);
+      let crossTotal = 0;
+      for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
+        const x = workDrone.x + dx, y = workDrone.y + dy;
+        if (x >= 0 && y >= 0 && x < N && y < N) {
+          const i = y * N + x, mod = cellMods.get(i);
+          if (grid[i] === (idMap.get(workDrone.target) || 0) && (coinMap[i] || mod?.type === MOD_CAP_COIN)) crossTotal += COIN_CELL_HOURLY + lvl[i];
+        }
+      }
+      c += Math.floor((crossTotal / 5) * 0.5);
     }
   }
   c += HOURLY_COINS;
@@ -601,14 +607,6 @@ function myResInc() {
   if (upkeep > 0) c = Math.max(1, Math.floor(c * (1 - upkeep)));
   if (capitalFallUntil > srvNow()) { c = Math.floor(c * .5); w = Math.floor(w * .5); p = Math.floor(p * .5); m = Math.floor(m * .5); }
   return { c, w, p, m, upkeepRate: upkeep };
-}
-function getDroneAt(i) {
-  const x = i % N, y = (i / N) | 0;
-  for (const [owner, p] of Object.entries(allPlayersCache)) {
-    const d = p?.workDrone;
-    if (d && d.target === myName && d.x === x && d.y === y && d.until > srvNow() && owner !== myName) return d;
-  }
-  return null;
 }
 function getDroneOwnerAt(i) {
   const x = i % N, y = (i / N) | 0;
@@ -984,7 +982,7 @@ window.triggerEngineerDrone = () => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
   if ((skillCD.counter || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.counter - srvNow())})`); return; }
   $("ideoModal").classList.remove("show"); skillMode = "engineer_drone"; updateAlertBar();
-  toast("🎯 資本の金脈マスをタップして工作ドローンを設置してください");
+  toast("🎯 資本の金脈を十字の中心にしてタップしてください");
 };
 
 // スキル着弾処理
@@ -996,12 +994,12 @@ async function executePointSkill(x, y) {
   if (mode === "engineer_drone") {
     const i = y * N + x, targetName = names[grid[i]];
     if (ideology !== "engineer" || getPlayerIdeo(targetName) !== "capital" || !(coinMap[i] || cellMods.get(i)?.type === MOD_CAP_COIN)) {
-      toast("資本の金脈マスを選択してください"); return;
+      toast("資本の金脈を十字の中心に選択してください"); return;
     }
     if (workDrone && workDrone.until > now) { toast("工作ドローンは1台までです"); return; }
     workDrone = { x, y, target:targetName, until:now + 3 * HOUR };
     skillCD.counter = now + IDEOLOGIES.engineer.cCT;
-    savePlayer(); toast("🏗️ 工作ドローンを設置！金脈収入を50%吸収します");
+    savePlayer(); toast("🏗️ 工作ドローンを設置！十字5マスの平均収入50%を獲得します");
   } else if (mode === "design_pollution") {
     if (ideology !== "cyber") { toast("電脳のみ使用できます"); return; }
     skillCD.counter = now + IDEOLOGIES.cyber.cCT;
@@ -1346,7 +1344,7 @@ function updateInfo() {
   const droneOwner = o === myId ? getDroneOwnerAt(i) : null;
   if (droneOwner) {
     const canRemove = coins >= 20 && metal >= 20;
-    info.innerHTML = `<div class="t">(${x},${y}) ${t}</div><small>🏗️ 工作ドローン稼働中: ${esc(droneOwner)} / 解除 🪙20 ⚙️20</small>`;
+    info.innerHTML = `<div class="t">(${x},${y}) ${t}</div><small>🏗️ 工作ドローン稼働中: ${esc(droneOwner)} / 十字5マス平均の50% / 解除 🪙20 ⚙️20</small>`;
     btn.textContent = "ドローン解除";
     btn.disabled = !canRemove || busy;
     btn.onclick = removeWorkDrone;
