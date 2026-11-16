@@ -18,6 +18,8 @@
   .card .v { font-size:14px; font-weight:800; white-space:nowrap; }
   .card.coin { border-color:rgba(255,225,77,.6); }
   .card.coin .v { color:var(--gold); text-shadow:0 0 6px rgba(255,225,77,.6); }
+  .card.daily { border-color:rgba(57,255,20,.6); }
+  .card.daily .v { color:var(--lime); text-shadow:0 0 6px rgba(57,255,20,.5); }
   .card.res .v { font-size:12px; display:flex; gap:5px; }
   .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
@@ -98,6 +100,7 @@
 <body>
 <div id="app">
   <div id="top">
+    <div class="card neon daily"><div class="l">Daily</div><div class="v">🎁 <span id="dailyTimer">--:--:--</span></div><div class="s" id="dailyStatus"></div></div>
     <div class="card neon"><div class="l">Player / 陣営</div><div id="name"><span class="swatch" id="sw"></span><span id="uName"></span></div></div>
     <div class="card neon coin"><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div><div class="s" id="nextH"></div></div>
     <div class="card neon res">
@@ -1160,6 +1163,12 @@ cv.addEventListener("wheel", e => { e.preventDefault(); const wx = (e.offsetX - 
 function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3200); }
 const fmt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => String(v).padStart(2, "0")).join(":"); };
 const fmtM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+function nextDailyReset(ts) {
+  const next = new Date(ts);
+  next.setHours(3, 0, 0, 0);
+  if (next.getTime() <= ts) next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
 
 function updateInfo() {
   $("coins").textContent = coins; $("rWood").textContent = wood; $("rPowder").textContent = powder; $("rMetal").textContent = metal;
@@ -1172,6 +1181,9 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const remH = HOUR - (activeMsBetween(lastActiveTick || srvNow(), srvNow()) % HOUR);
   $("nextH").textContent = `⏱ ${fmtM(remH)} (+${inc.c}🪙)`;
+  const now = srvNow(), dailyIdx = Math.floor((now - 3 * HOUR) / DAY);
+  $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
+  $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
   const totInv = Object.values(inv).reduce((a, b) => a + b, 0);
   $("mBadge").textContent = totInv; $("mBadge").style.display = totInv > 0 ? "flex" : "none";
   $("worldClock").textContent = isActiveTime() ? "🟢 稼働中(9-17時)" : "🌙 時間停止中";
