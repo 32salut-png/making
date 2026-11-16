@@ -468,6 +468,8 @@ const cellUrl = k => `${DB}/gameData/${GAME_ID}/cells/${k}.json`;
 const modUrl = k => `${DB}/gameData/${GAME_ID}/cellMods/${k}.json`;
 const pIdsUrl = `${DB}/gameData/${GAME_ID}/pIds.json`;
 const playerUrl = `${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}.json`;
+const playerSummariesUrl = `${DB}/gameData/${GAME_ID}/playerSummaries`;
+const playerSummaryUrl = `${playerSummariesUrl}/${encodeURIComponent(myName)}.json`;
 const shieldUrl = `${DB}/gameData/${GAME_ID}/shields/${encodeURIComponent(myName)}.json`;
 const marketUrl = `${DB}/gameData/${GAME_ID}/market`;
 const mailboxUrl = `${DB}/gameData/${GAME_ID}/mailbox/${encodeURIComponent(myName)}`;
@@ -642,7 +644,7 @@ let lastActiveTick = 0, lastDay = 0, skillCD = { main: 0, counter: 0 };
 let shieldUntil = 0, shieldStacks = 0, miniShieldStacks = 0, miniShieldUntil = 0, shieldUsedHr = -1, shieldUsedCnt = 0, empUntil = 0, boostUntil = 0, beaconArmed = false;
 let capitalFallUntil = 0, rebelUntil = 0, rebelCD = 0, rebelHits = 0;
 const inv = { missile:0, bomb:0, shield:0, ticket:0, boost:0, bunker:0, emp:0, laser:0 };
-let allPlayersCache = {}, worldEvents = {}, worldWonders = {};
+let allPlayersCache = {}, playerDetailsCache = null, playerSummaryMode = false, worldEvents = {}, worldWonders = {};
 let myAlliance = null, myOverlord = null, myVassals = [];
 
 const colCache = new Map();
@@ -931,15 +933,43 @@ function checkWonderDisruption(x, y) {
 }
 
 // ===== プレイヤーデータ同期 =====
-async function savePlayer() {
-  if (myName === "Guest" || !playerLoaded) return;
-  const doc = {
+let playerSaveTimer = 0, playerSaveInFlight = null, playerSaveQueued = false;
+function playerDoc() {
+  return {
     coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps, workDrone, designPollution,
     protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, miniShieldStacks, miniShieldUntil, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
   };
-  cacheState.player = doc; scheduleCacheSave();
-  await fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) }).catch(()=>{});
 }
+function playerSummary(doc) {
+  return {
+    coins:doc.coins || 0, res:doc.res || { wood:0, powder:0, metal:0 }, ideology:doc.ideology || null,
+    core:doc.core || null, camps:doc.camps || [], workDrone:doc.workDrone || null,
+    designPollution:doc.designPollution || null, protectUntil:doc.protectUntil || 0,
+    protectBroken:!!doc.protectBroken, allianceId:doc.allianceId || null, rebelUntil:doc.rebelUntil || 0
+  };
+}
+async function writePlayer(doc) {
+  if (playerSaveInFlight) { playerSaveQueued = true; return; }
+  if (playerDetailsCache) playerDetailsCache[myName] = doc;
+  const writes = [fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) })];
+  if (playerSummaryMode) writes.push(fetch(playerSummaryUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(playerSummary(doc)) }));
+  playerSaveInFlight = Promise.all(writes)
+    .catch(()=>{})
+    .finally(() => {
+      playerSaveInFlight = null;
+      if (playerSaveQueued) { playerSaveQueued = false; savePlayer(true); }
+    });
+  await playerSaveInFlight;
+}
+function savePlayer(immediate = false) {
+  if (myName === "Guest" || !playerLoaded) return;
+  const doc = playerDoc();
+  cacheState.player = doc; scheduleCacheSave();
+  clearTimeout(playerSaveTimer);
+  if (immediate) { writePlayer(doc); return; }
+  playerSaveTimer = setTimeout(() => writePlayer(playerDoc()), 350);
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) savePlayer(true); });
 async function loadPlayer() {
   if (myName === "Guest") { await syncTime(); firebaseSync.player = true; maybeFirebaseReady(); return; }
   await syncTime();
@@ -966,7 +996,7 @@ function applyPlayerData(p, normalize = false) {
   for (const k in inv) inv[k] = p.items?.[k] || 0;
   inv.bunker = (p.items?.bunker || 0) + (p.items?.sniper || 0);
   playerLoaded = true;
-  if (normalize && normalizeTick && myName !== "Guest") savePlayer();
+  if (normalize && normalizeTick && myName !== "Guest") savePlayer(true);
   cacheState.player = p;
   scheduleCacheSave();
   recalcSupply();
@@ -1589,6 +1619,43 @@ function scheduleRefresh() {
   if (refreshT) return;
   refreshT = setTimeout(() => { refreshT = 0; recalcSupply(); updateInfo(); dirty = true; }, 120);
 }
+function applyPlayerSummary(path, data) {
+  if (path === "/") allPlayersCache = data || {};
+  else {
+    const name = decodeURIComponent(path.slice(1));
+    if (data == null) delete allPlayersCache[name];
+    else allPlayersCache[name] = data;
+  }
+  cacheState.players = allPlayersCache; scheduleCacheSave(); dirty = true;
+}
+function listenPlayerSummaries() {
+  const es = newES(`${playerSummariesUrl}.json`);
+  es.addEventListener("put", e => {
+    const { path, data } = JSON.parse(e.data);
+    applyPlayerSummary(path, data);
+  });
+}
+async function connectPlayerSummaries() {
+  const summaries = await fetch(`${playerSummariesUrl}.json`).then(r => r.json()).catch(() => null);
+  if (summaries && typeof summaries === "object" && Object.keys(summaries).length) {
+    playerSummaryMode = true;
+    applyPlayerSummary("/", summaries);
+    listenPlayerSummaries();
+    return;
+  }
+  const legacy = newES(`${DB}/gameData/${GAME_ID}/players.json`);
+  legacy.addEventListener("put", async e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path !== "/") return;
+    const summary = {};
+    for (const [name, player] of Object.entries(data || {})) summary[name] = playerSummary(player || {});
+    applyPlayerSummary("/", summary);
+    const r = await fetch(`${playerSummariesUrl}.json`, {
+      method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(summary)
+    }).catch(() => null);
+    if (r?.ok) { playerSummaryMode = true; legacy.close(); listenPlayerSummaries(); }
+  });
+}
 function connect() {
   newES(pIdsUrl).addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
@@ -1609,14 +1676,7 @@ function connect() {
     scheduleCacheSave();
     dirty = true;
   });
-  newES(`${DB}/gameData/${GAME_ID}/players.json`).addEventListener("put", e => {
-    const { path, data } = JSON.parse(e.data);
-    if (path === "/") allPlayersCache = data || {};
-    else if (data == null) delete allPlayersCache[decodeURIComponent(path.slice(1))];
-    else allPlayersCache[decodeURIComponent(path.slice(1))] = data;
-    cacheState.players = allPlayersCache; scheduleCacheSave();
-    dirty = true;
-  });
+  connectPlayerSummaries();
   fetch(`${DB}/gameData/${GAME_ID}/world.json`).then(r => r.json()).then(d => {
     if (d) { worldEvents = d.events || {}; worldWonders = d.wonders || {}; cacheState.world = { events:worldEvents, wonders:worldWonders }; scheduleCacheSave(); updateAlertBar(); dirty = true; }
   }).catch(()=>{});
@@ -2021,14 +2081,20 @@ function setRankTabs() {
 }
 $("tabLive").onclick = () => { rankTab = "live"; setRankTabs(); renderRank(); };
 $("tabBest").onclick = () => { rankTab = "best"; setRankTabs(); renderRank(); };
-$("tabCyber").onclick = () => { rankTab = "cyber"; setRankTabs(); renderRank(); };
+$("tabCyber").onclick = () => { rankTab = "cyber"; playerDetailsCache = null; setRankTabs(); renderRank(); };
+async function loadPlayerDetails() {
+  if (playerDetailsCache) return playerDetailsCache;
+  playerDetailsCache = await fetch(`${DB}/gameData/${GAME_ID}/players.json`).then(r => r.json()).catch(() => ({})) || {};
+  return playerDetailsCache;
+}
 async function renderRank() {
   const el = $("rankList");
   if (rankTab === "cyber" && ideology === "cyber") {
+    const details = await loadPlayerDetails();
     const now = srvNow();
     const cd = value => value > now ? fmt(value - now) : "使用可能";
     const itemText = p => Object.entries(p.items || {}).filter(([, n]) => n > 0).map(([name, n]) => `${esc(name)}×${n}`).join("、") || "なし";
-    el.innerHTML = Object.entries(allPlayersCache).map(([k, p]) => {
+    el.innerHTML = Object.entries(details).map(([k, p]) => {
       const name = decodeURIComponent(k), id = idMap.get(name), territory = id ? (counts[id] || 0) : 0;
       const coreText = p.core ? `(${p.core.x},${p.core.y})` : "なし";
       const droneText = p.workDrone?.until > now ? `設置中(${esc(p.workDrone.target || "不明")})` : "なし";
