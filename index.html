@@ -1129,8 +1129,10 @@ function draw() {
       if (!isVisibleInFog(x, y)) continue;
       const i = y * N + x, px = ox + x * scale, py = oy + y * scale, mod = cellMods.get(i), sp = spec[i];
       ctx.font = `${Math.floor(scale * .6)}px sans-serif`;
-      if (core && core.x === x && core.y === y && grid[i] === myId) ctx.fillText("🏰", px + scale/2, py + scale/2);
-      else if (grid[i] === myId && camps.some(cp => x >= cp.x && x <= cp.x + 1 && y >= cp.y && y <= cp.y + 1)) ctx.fillText("⛺", px + scale/2, py + scale/2);
+      const isCore = core && core.x === x && core.y === y && grid[i] === myId;
+      const isCamp = grid[i] === myId && camps.some(cp => x >= cp.x && x <= cp.x + 1 && y >= cp.y && y <= cp.y + 1);
+      if (isCore) ctx.fillText("🏰", px + scale/2, py + scale/2);
+      else if (isCamp) ctx.fillText("⛺", px + scale/2, py + scale/2);
       else if (mod?.type === MOD_WALL) ctx.fillText("🧱", px + scale/2, py + scale/2);
       else if (met && met.x === x && met.y === y) ctx.fillText("💎", px + scale/2, py + scale/2);
       else if (coinMap[i] || mod?.type === MOD_CAP_COIN) ctx.fillText("💰", px + scale/2, py + scale/2);
@@ -1139,9 +1141,22 @@ function draw() {
       else if (sp === TYPE_METAL || mod?.type === MOD_METAL) ctx.fillText("⛰️", px + scale/2, py + scale/2);
       else if (sp === TYPE_WARP) ctx.fillText("🌀", px + scale/2, py + scale/2);
       else if (sp === TYPE_FORT) ctx.fillText("🛡️", px + scale/2, py + scale/2);
+      if (isCore || isCamp) {
+        const tileIcon = met && met.x === x && met.y === y ? "💎"
+          : coinMap[i] || mod?.type === MOD_CAP_COIN ? "💰"
+          : sp === TYPE_WOOD || mod?.type === MOD_WOOD ? "🌲"
+          : sp === TYPE_POWDER || mod?.type === MOD_POWDER ? "🌋"
+          : sp === TYPE_METAL || mod?.type === MOD_METAL ? "⛰️"
+          : sp === TYPE_WARP ? "🌀"
+          : sp === TYPE_FORT ? "🛡️" : "";
+        if (tileIcon) {
+          ctx.font = `${Math.floor(scale * .38)}px sans-serif`;
+          ctx.fillText(tileIcon, px + scale * .8, py + scale * .2);
+        }
+      }
       if (lvl[i] > 0 && grid[i] && scale >= 11) {
         ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.floor(scale * .35)}px sans-serif`;
-        ctx.fillText("L" + lvl[i], px + scale * .78, py + scale * .25);
+        ctx.fillText("L" + lvl[i], px + scale * .78, py + scale * .78);
       }
     }
   }
