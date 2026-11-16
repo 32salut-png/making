@@ -302,6 +302,28 @@ function isActiveTime(ts = srvNow()) {
   const d = new Date(ts), day = d.getDay(), h = d.getHours();
   return day >= 1 && day <= 5 && h >= 9 && h < 17;
 }
+function nextHourlyRewardAt(ts) {
+  if (adminBypassTime) {
+    const next = new Date(ts);
+    next.setMinutes(0, 0, 0);
+    if (next.getTime() <= ts) next.setTime(next.getTime() + HOUR);
+    return next.getTime();
+  }
+  const next = new Date(ts);
+  const day = next.getDay(), hour = next.getHours();
+  if (day >= 1 && day <= 5 && hour >= 9 && hour < 17) {
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    return next.getTime();
+  }
+  if (day >= 1 && day <= 5 && hour < 9) next.setHours(10, 0, 0, 0);
+  else {
+    next.setDate(next.getDate() + 1);
+    next.setHours(10, 0, 0, 0);
+    while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+  }
+  return next.getTime();
+}
 function activeMsBetween(t1, t2) {
   if (t2 <= t1) return 0;
   if (adminBypassTime) return t2 - t1;
@@ -691,8 +713,8 @@ async function loadPlayer() {
   started = !!p.started; ideology = p.ideology || null; ideoChangedAt = p.ideoChangedAt || 0;
   core = p.core || null; camps = Array.isArray(p.camps) ? p.camps : [];
   protectUntil = p.protectUntil || 0; protectBroken = !!p.protectBroken;
-  lastActiveTick = p.lastActiveTick || srvNow(); lastDay = p.day || 0;
-  if (!p.lastActiveTick && myName !== "Guest") savePlayer();
+  lastActiveTick = Math.floor((p.lastActiveTick || srvNow()) / HOUR) * HOUR; lastDay = p.day || 0;
+  if ((!p.lastActiveTick || p.lastActiveTick !== lastActiveTick) && myName !== "Guest") savePlayer();
   skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
   capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
   for (const k in inv) inv[k] = p.items?.[k] || 0;
@@ -1182,7 +1204,7 @@ function updateInfo() {
   $("sw").style.background = cols(myName).fill; $("sw").style.color = cols(myName).fill;
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const now = srvNow();
-  const remH = HOUR - (activeMsBetween(lastActiveTick || now, now) % HOUR);
+  const remH = Math.max(0, nextHourlyRewardAt(now) - now);
   $("nextH").textContent = `⏱ ${fmtM(remH)} (+${inc.c}🪙)`;
   const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
