@@ -349,9 +349,10 @@ const IDEOLOGIES = {
   capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+50%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
   military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
   guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:6*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
-  cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーのデータ詳細を閲覧", aName:"データ加速", aDesc:"1時間分の報酬を獲得し、同盟メンバー全員の残りCTを50%短縮", aCT:3*HOUR, cName:"設計図汚染", cDesc:"半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)", cCT:6*HOUR },
+  cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーのデータ詳細を閲覧、アイテム効果時間+25%", aName:"データ加速", aDesc:"1時間分の報酬を獲得し、同盟メンバー全員の残りCTを50%短縮", aCT:3*HOUR, cName:"設計図汚染", cDesc:"半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)", cCT:6*HOUR },
   engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cName:"工作ドローン", cDesc:"資本の金脈1マスに設置し、収入を50%ずつ分配", cCT:6*HOUR },
 };
+const itemDuration = base => ideology === "cyber" ? Math.round(base * 1.25) : base;
 
 // ===== マップデータ & URL =====
 const cellUrl = k => `${DB}/gameData/${GAME_ID}/cells/${k}.json`;
@@ -1485,24 +1486,26 @@ window.useItem = async id => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
   $("craftModal").classList.remove("show");
   if (id === "shield") {
-    inv.shield--; shieldUntil = Math.max(srvNow(), shieldUntil) + 12 * HOUR; shieldStacks++;
+    const duration = itemDuration(12 * HOUR);
+    inv.shield--; shieldUntil = Math.max(srvNow(), shieldUntil) + duration; shieldStacks++;
     fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}/shieldUntil.json`, { method:"PUT", body:JSON.stringify(shieldUntil) }).catch(()=>{});
     fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}/shieldStacks.json`, { method:"PUT", body:JSON.stringify(shieldStacks) }).catch(()=>{});
-    savePlayer(); updateInfo(); toast(`🛡️ ナノシールド強化！現在 ${shieldStacks}重ね (毎時${shieldStacks * 3}回防御・12時間)`);
+    savePlayer(); updateInfo(); toast(`🛡️ ナノシールド強化！現在 ${shieldStacks}重ね (毎時${shieldStacks * 3}回防御・${duration / HOUR}時間)`);
   } else if (id === "emp") {
     if (!selected || !ownerAt(selected.x, selected.y)) return toast("⚡ バリアを解除する敵マスを選択してください");
     const targetName = names[ownerAt(selected.x, selected.y)];
     inv.emp--; savePlayer();
-    const eUntil = srvNow() + 5 * 60000;
+    const eUntil = srvNow() + itemDuration(5 * 60000);
     fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(targetName)}/empUntil.json`, { method:"PUT", body:JSON.stringify(eUntil) }).catch(()=>{});
-    toast(`⚡ EMP照射！${targetName} のバリアを5分間完全シャットダウン！`);
+    toast(`⚡ EMP照射！${targetName} のバリアを${itemDuration(5 * 60000) / 60000}分間完全シャットダウン！`);
   } else if (id === "bunker") {
     if (!selected || !ownerAt(selected.x, selected.y)) return toast("🎯 貫通破壊する敵マスを選択してください");
     inv.bunker--; savePlayer();
     const res = hitTarget(selected.x, selected.y, true);
     toast(res === "destroyed" ? "🎯 バンカーバスター貫通！敵マスを完全粉砕！" : "破壊できませんでした");
   } else if (id === "boost") {
-    inv.boost--; boostUntil = Math.max(srvNow(), boostUntil) + 24 * HOUR; savePlayer(); toast("⚡ 超ブースト発動(24時間)");
+    const duration = itemDuration(24 * HOUR);
+    inv.boost--; boostUntil = Math.max(srvNow(), boostUntil) + duration; savePlayer(); toast(`⚡ 超ブースト発動(${duration / HOUR}時間)`);
   } else if (id === "ticket") {
     beaconArmed = !beaconArmed; toast(beaconArmed ? "🎫 空挺降下待機中: 空きマスを選択" : "🎫 解除");
   } else if (id === "missile") {
