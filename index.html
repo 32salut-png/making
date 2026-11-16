@@ -1694,7 +1694,10 @@ async function autoEventTick() {
     }
   } catch (_) {}
 }
-setInterval(() => { updateInfo(); }, 1000);
+setInterval(() => {
+  updateInfo();
+  if ($("ideoModal").classList.contains("show")) renderIdeoModal();
+}, 1000);
 setInterval(() => { syncAllianceAndVassal(); checkMailbox(); }, 30000);
 setInterval(() => { autoEventTick(); }, 45000);
 </script>
