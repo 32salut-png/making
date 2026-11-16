@@ -1939,17 +1939,11 @@ async function renderRank() {
   }
 }
 
-// 管理者「のむのむ」専用（テスト用時間解放・イベント発生・リセット）
+// 管理者「のむのむ」専用（全データリセット）
 if (myName === "のむのむ") {
   const b1 = document.createElement("button"); b1.className = "ib neon gold"; b1.textContent = "🛠️"; b1.title = "管理者メニュー";
   b1.onclick = async () => {
-    const cmd = prompt("【管理者メニュー】\n1: 時間停止バイパスON/OFF\n2: ☄️隕石落下イベント発生(3h)\n3: 🌫️濃霧イベント発生(2h)\n4: ⚠️全データ完全リセット\n5: 🎰ギャンブル発生(1h)\n6: 🎭仮面舞踏会発生(2h)");
-    if (cmd === "5") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/gamble.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + HOUR }) }); toast("🎰 ギャンブル・アワー開始！"); return; }
-    if (cmd === "6") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/mask.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + 2 * HOUR }) }); toast("🎭 仮面舞踏会開始！"); return; }
-    if (cmd === "1") { adminBypassTime = !adminBypassTime; toast("時間停止バイパス: " + adminBypassTime); updateInfo(); }
-    else if (cmd === "2") { const mx = 20 + Math.floor(Math.random()*160), my = 20 + Math.floor(Math.random()*160); await fetch(`${DB}/gameData/${GAME_ID}/world/events/meteor.json`, { method:"PUT", body:JSON.stringify({ x:mx, y:my, until:srvNow()+3*HOUR }) }); toast(`☄️ (${mx},${my})に隕石落下！`); }
-    else if (cmd === "3") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/fog.json`, { method:"PUT", body:JSON.stringify({ until:srvNow()+2*HOUR }) }); toast("🌫️ 全域濃霧発生！"); }
-    else if (cmd === "4" && confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
+    if (confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
   };
   $("top").appendChild(b1);
 }
