@@ -1218,7 +1218,7 @@ function updateInfo() {
   const info = $("info"), btn = $("claim");
   if (!selected) { info.innerHTML = `<div class="t">マスをタップして選択</div><small>補給線や陣営スキルを活用しよう</small>`; btn.disabled = true; return; }
   const { x, y } = selected, i = y * N + x, o = grid[i], oName = names[o], c = costFor(x, y);
-  let t = o ? `<span class="swatch" style="background:${cols(oName).fill}"></span>${esc(oName)} (${getPlayerIdeo(oName) ? IDEOLOGIES[getPlayerIdeo(oName)].name.split(" ")[0] : "無"})` : "空きマス";
+  let t = o ? `<span class="swatch" style="background:${cols(oName).fill}"></span>${esc(oName)}` : "空きマス";
   if (o && o !== myId && !isAlly(oName) && isEvtOn("mask")) t = `<span class="swatch" style="background:#8c8c96"></span>？？？ (不明)`;
   if (o === myId && isolatedSet.has(i)) t += ` <span class="tag no">⚠️隔離中</span>`;
   if (o && isProtected(oName)) t += ` <span class="tag ally">🛡️無敵保護</span>`;
