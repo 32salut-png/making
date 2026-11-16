@@ -349,8 +349,8 @@ const IDEOLOGIES = {
   capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+50%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
   military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
   guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:6*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
-  cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーの財産常時透視", aName:"データ加速", aDesc:"自領土の全コイン・資源マス1h分を即獲得", aCT:3*HOUR, cDesc:"対工兵: 改造マス・防壁を解体し素材強奪(CT6h)" },
-  engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cDesc:"対資本: 買収無効＆資本からの攻撃コスト2倍" }
+  cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーの財産常時透視", aName:"データ加速", aDesc:"自領土の全コイン・資源マス1h分を即獲得", aCT:3*HOUR, cName:"同盟CTハック", cDesc:"同盟メンバー全員の残りCTを50%短縮", cCT:6*HOUR },
+  engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cName:"工作ドローン", cDesc:"資本の金脈1マスに設置し、収入を50%ずつ分配", cCT:6*HOUR },
 };
 
 // ===== マップデータ & URL =====
@@ -443,7 +443,7 @@ function recalcWarp() { hasWarp = warpList.some(i => grid[i] === myId && !isolat
 
 // ===== プレイヤー・ワールド状態 =====
 let coins = 0, wood = 0, powder = 0, metal = 0, started = false, loadedOnce = false, playerLoaded = false;
-let ideology = null, ideoChangedAt = 0, core = null, camps = [], protectUntil = 0, protectBroken = false;
+let ideology = null, ideoChangedAt = 0, core = null, camps = [], workDrone = null, designPollution = null, protectUntil = 0, protectBroken = false;
 let lastActiveTick = 0, lastDay = 0, skillCD = { main: 0, counter: 0 };
 let shieldUntil = 0, shieldStacks = 0, shieldUsedHr = -1, shieldUsedCnt = 0, empUntil = 0, boostUntil = 0, beaconArmed = false;
 let capitalFallUntil = 0, rebelUntil = 0, rebelCD = 0, rebelHits = 0;
@@ -577,11 +577,22 @@ function myResInc() {
   for (let i = 0; i < grid.length; i++) {
     if (grid[i] !== myId || isolatedSet.has(i)) continue;
     const l = lvl[i], mod = cellMods.get(i);
-    if (coinMap[i] || (mod && mod.type === MOD_CAP_COIN)) c += COIN_CELL_HOURLY + l;
+    if (coinMap[i] || (mod && mod.type === MOD_CAP_COIN)) {
+      let coinInc = COIN_CELL_HOURLY + l;
+      const drone = getDroneAt(i);
+      if (drone) coinInc = Math.ceil(coinInc * 0.5);
+      c += coinInc;
+    }
     if (spec[i] === TYPE_WOOD || (mod && mod.type === MOD_WOOD)) w += RES_HOURLY + l;
     if (spec[i] === TYPE_POWDER || (mod && mod.type === MOD_POWDER)) p += RES_HOURLY + l;
     if (spec[i] === TYPE_METAL || (mod && mod.type === MOD_METAL)) m += RES_HOURLY + l;
     if (metActive && i === met.y * N + met.x) { c += 10; w += 5; p += 5; m += 5; }
+  }
+  if (workDrone && workDrone.target && workDrone.until > srvNow()) {
+    const droneIdx = workDrone.y * N + workDrone.x;
+    if (grid[droneIdx] === (idMap.get(workDrone.target) || 0) && (coinMap[droneIdx] || cellMods.get(droneIdx)?.type === MOD_CAP_COIN)) {
+      c += Math.floor((COIN_CELL_HOURLY + lvl[droneIdx]) * 0.5);
+    }
   }
   c += HOURLY_COINS;
   if (ideology === "capital") c = Math.floor(c * 1.5);
@@ -589,6 +600,29 @@ function myResInc() {
   if (upkeep > 0) c = Math.max(1, Math.floor(c * (1 - upkeep)));
   if (capitalFallUntil > srvNow()) { c = Math.floor(c * .5); w = Math.floor(w * .5); p = Math.floor(p * .5); m = Math.floor(m * .5); }
   return { c, w, p, m, upkeepRate: upkeep };
+}
+function getDroneAt(i) {
+  const x = i % N, y = (i / N) | 0;
+  for (const [owner, p] of Object.entries(allPlayersCache)) {
+    const d = p?.workDrone;
+    if (d && d.target === myName && d.x === x && d.y === y && d.until > srvNow() && owner !== myName) return d;
+  }
+  return null;
+}
+function getDroneOwnerAt(i) {
+  const x = i % N, y = (i / N) | 0;
+  for (const [owner, p] of Object.entries(allPlayersCache)) {
+    const d = p?.workDrone;
+    if (d && d.x === x && d.y === y && d.until > srvNow()) return owner;
+  }
+  return null;
+}
+function getDesignPollutionAt(x, y) {
+  for (const [owner, p] of Object.entries(allPlayersCache)) {
+    const pollution = p?.designPollution;
+    if (p?.ideology === "cyber" && pollution && pollution.until > srvNow() && Math.hypot(x - pollution.x, y - pollution.y) <= 5) return pollution;
+  }
+  return null;
 }
 
 let bestScore = -1;
@@ -707,7 +741,7 @@ function checkWonderDisruption(x, y) {
 async function savePlayer() {
   if (myName === "Guest" || !playerLoaded) return;
   const doc = {
-    coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps,
+    coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps, workDrone, designPollution,
     protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
   };
   await fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) }).catch(()=>{});
@@ -719,6 +753,8 @@ async function loadPlayer() {
   coins = p.coins || 0; wood = p.res?.wood || 0; powder = p.res?.powder || 0; metal = p.res?.metal || 0;
   started = !!p.started; ideology = p.ideology || null; ideoChangedAt = p.ideoChangedAt || 0;
   core = p.core || null; camps = Array.isArray(p.camps) ? p.camps : [];
+  workDrone = p.workDrone || null;
+  designPollution = p.designPollution || null;
   protectUntil = p.protectUntil || 0; protectBroken = !!p.protectBroken;
   lastActiveTick = Math.floor((p.lastActiveTick || srvNow()) / HOUR) * HOUR; lastDay = p.day || 0;
   const normalizeTick = !p.lastActiveTick || p.lastActiveTick !== lastActiveTick;
@@ -883,8 +919,12 @@ function renderIdeoModal() {
         <button class="cbtn gold" onclick="triggerMainSkill()" ${mainRem > 0 ? "disabled" : ""}>${mainRem > 0 ? fmt(mainRem) : "発動"}</button>
       </div>
     `;
+    if (ideology === "cyber" || ideology === "engineer") {
+      html += `<div class="crow"><div class="ci"><div class="ct">🎯 対策スキル: ${d.cName}</div><div class="cd">${d.cDesc}</div></div><button class="cbtn mag" onclick="${ideology === "cyber" ? "triggerCyberHack()" : "triggerEngineerDrone()"}" ${cntRem > 0 ? "disabled" : ""}>${cntRem > 0 ? fmt(cntRem) : "発動"}</button></div>`;
+    }
     if (ideology === "cyber") {
-      html += `<div class="crow"><div class="ci"><div class="ct">🎯 対策スキル: 設計図ハック</div><div class="cd">${d.cDesc}</div></div><button class="cbtn mag" onclick="triggerCyberHack()" ${cntRem > 0 ? "disabled" : ""}>${cntRem > 0 ? fmt(cntRem) : "発動"}</button></div>`;
+      const pollutionRem = Math.max(0, (skillCD.pollution || 0) - now);
+      html += `<div class="crow"><div class="ci"><div class="ct">🧪 設計図汚染</div><div class="cd">半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)</div></div><button class="cbtn mag" onclick="triggerDesignPollution()" ${pollutionRem > 0 ? "disabled" : ""}>${pollutionRem > 0 ? fmt(pollutionRem) : "発動"}</button></div>`;
     }
     const chgRem = Math.max(0, (ideoChangedAt + 24 * HOUR) - now);
     html += `<div style="margin-top:12px;border-top:1px dashed rgba(255,255,255,.2);padding-top:8px"><button class="cbtn" style="width:100%" onclick="resetIdeo()" ${chgRem > 0 ? "disabled" : ""}>🔄 陣営変更 (${chgRem > 0 ? "残り"+fmt(chgRem) : "可能/🪙50"})</button></div>`;
@@ -893,6 +933,16 @@ function renderIdeoModal() {
 }
 window.selectIdeo = id => { ideology = id; recalcSupply(); ideoChangedAt = srvNow(); savePlayer(); $("ideoModal").classList.remove("show"); updateInfo(); dirty = true; toast(`🎭 ${IDEOLOGIES[id].name} を選択しました！`); };
 window.resetIdeo = () => { if (coins < 50) { toast("変更には🪙50必要です"); return; } coins -= 50; ideology = null; renderIdeoModal(); };
+window.removeWorkDrone = async () => {
+  if (!selected || coins < 20 || metal < 20) return toast("解除には🪙20と⚙️20が必要です");
+  const i = selected.y * N + selected.x, owner = getDroneOwnerAt(i);
+  if (!owner) return;
+  workDrone = owner === myName ? null : workDrone;
+  if (owner === myName) { workDrone = null; savePlayer(); }
+  else fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}/workDrone.json`, { method:"DELETE" }).catch(()=>{});
+  coins -= 20; metal -= 20; savePlayer(); updateInfo(); dirty = true;
+  toast("🛠️ 工作ドローンを高コストで解除しました");
+};
 
 window.triggerMainSkill = () => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
@@ -911,20 +961,61 @@ window.triggerMainSkill = () => {
     toast("🎯 マップ上でスキル発動地点をタップして決定ボタンを押してください");
   }
 };
-window.triggerCyberHack = () => {
+window.triggerCyberHack = async () => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
   if ((skillCD.counter || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.counter - srvNow())})`); return; }
-  $("ideoModal").classList.remove("show"); skillMode = "cyber_hack"; updateAlertBar();
-  toast("🎯 ハックする工兵の改造マス/防壁をタップしてください");
+  if (!myAlliance?.members?.length) { toast("同盟に加入していません"); return; }
+  const now = srvNow(), members = myAlliance.members;
+  for (const member of members) {
+    const url = `${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(member)}.json`;
+    const p = member === myName ? { skillCD, rebelCD } : await fetch(url).then(r => r.json()).catch(() => null);
+    if (!p) continue;
+    const shorten = value => Math.max(now, value || 0) === now ? 0 : now + (value - now) * 0.5;
+    const nextSkillCD = { ...(p.skillCD || {}), main:shorten(p.skillCD?.main), counter:shorten(p.skillCD?.counter) };
+    const nextRebelCD = shorten(p.rebelCD);
+    if (member === myName) { skillCD = nextSkillCD; rebelCD = nextRebelCD; }
+    fetch(url, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ skillCD:nextSkillCD, rebelCD:nextRebelCD }) }).catch(()=>{});
+  }
+  skillCD.counter = now + IDEOLOGIES.cyber.cCT;
+  savePlayer(); $("ideoModal").classList.remove("show"); updateInfo();
+  toast("🔬 同盟CTハック発動！同盟メンバー全員の残りCTを50%短縮！");
+};
+window.triggerEngineerDrone = () => {
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  if ((skillCD.counter || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.counter - srvNow())})`); return; }
+  $("ideoModal").classList.remove("show"); skillMode = "engineer_drone"; updateAlertBar();
+  toast("🎯 資本の金脈マスをタップして工作ドローンを設置してください");
+};
+window.triggerDesignPollution = () => {
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  if ((skillCD.pollution || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.pollution - srvNow())})`); return; }
+  $("ideoModal").classList.remove("show"); skillMode = "design_pollution"; updateAlertBar();
+  toast("🎯 工兵の改造を乱す地点をタップしてください");
 };
 
 // スキル着弾処理
 async function executePointSkill(x, y) {
   const mode = skillMode; skillMode = null; updateAlertBar();
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
-  const now = srvNow(), cdKey = mode === "cyber_hack" ? "counter" : "main";
+  const now = srvNow(), cdKey = mode === "engineer_drone" ? "counter" : mode === "design_pollution" ? "pollution" : "main";
   if ((skillCD[cdKey] || 0) > now) { toast(`⏳ CT中です (${fmt(skillCD[cdKey] - now)})`); return; }
-  if (mode === "capital") {
+  if (mode === "engineer_drone") {
+    const i = y * N + x, targetName = names[grid[i]];
+    if (ideology !== "engineer" || getPlayerIdeo(targetName) !== "capital" || !(coinMap[i] || cellMods.get(i)?.type === MOD_CAP_COIN)) {
+      toast("資本の金脈マスを選択してください"); return;
+    }
+    if (workDrone && workDrone.until > now) { toast("工作ドローンは1台までです"); return; }
+    workDrone = { x, y, target:targetName, until:now + 3 * HOUR };
+    skillCD.counter = now + IDEOLOGIES.engineer.cCT;
+    savePlayer(); toast("🏗️ 工作ドローンを設置！金脈収入を50%吸収します");
+  } else if (mode === "design_pollution") {
+    if (ideology !== "cyber") { toast("電脳のみ使用できます"); return; }
+    skillCD.pollution = now + 6 * HOUR;
+    designPollution = { x, y, until:now + 2 * HOUR };
+    savePlayer(); toast("🔬 設計図汚染を開始！範囲内の工兵改造が乱れます");
+  } else if (mode === "cyber_hack") {
+    toast("このスキルは同盟CTハックに変更されました"); return;
+  } else if (mode === "capital") {
     if (ownerAt(x, y) !== myId) { toast("自領土の中心を選んでください"); return; }
     for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
       const nx = x+dx, ny = y+dy;
@@ -974,15 +1065,19 @@ $("engConfirm").onclick = async () => {
   const choice = prompt("改造タイプを番号で入力してください:\n1: 🧱防壁(通行止め)\n2: 🌲森林(木材)\n3: 🌋鉱床(火薬)\n4: ⛰️鉄鉱(金属)");
   const map = { "1":MOD_WALL, "2":MOD_WOOD, "3":MOD_POWDER, "4":MOD_METAL };
   const t = map[choice]; if (!t) return;
+  let polluted = false;
   for (const idx of engTargets) {
     const x = idx%N, y = (idx/N)|0;
-    cellMods.set(idx, { type:t, owner:myName });
-    fetch(modUrl(toKey(x, y)), { method:"PUT", body:JSON.stringify({ type:t, owner:myName }) });
+    const pollution = getDesignPollutionAt(x, y);
+    const actualType = pollution ? [MOD_WALL, MOD_WOOD, MOD_POWDER, MOD_METAL][Math.floor(Math.random() * 4)] : t;
+    polluted ||= !!pollution;
+    cellMods.set(idx, { type:actualType, owner:myName });
+    fetch(modUrl(toKey(x, y)), { method:"PUT", body:JSON.stringify({ type:actualType, owner:myName }) });
   }
   const cnt = engTargets.length;
   engMode = false; engTargets = []; $("engConfirm").style.display = "none";
   skillCD.main = srvNow() + IDEOLOGIES.engineer.aCT; savePlayer(); updateAlertBar(); dirty = true;
-  toast(`🏗️ ${cnt}マスを一括改造しました！`);
+  toast(polluted ? `⚠️ 設計図に何か異変がありそうだ……${cnt}マスを改造しました` : `🏗️ ${cnt}マスを一括改造しました！`);
 };
 
 // ===== 3大特殊勝利ルート =====
@@ -1110,7 +1205,6 @@ function draw() {
   const x0 = Math.max(0, Math.floor(-ox / scale)), x1 = Math.min(N - 1, Math.floor((W - ox) / scale));
   const y0 = Math.max(0, Math.floor(-oy / scale)), y1 = Math.min(N - 1, Math.floor((H - oy) / scale));
   const met = worldEvents.meteor && worldEvents.meteor.until > srvNow() ? worldEvents.meteor : null;
-
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const i = y * N + x, px = ox + x * scale, py = oy + y * scale;
     if (!isVisibleInFog(x, y)) { ctx.fillStyle = "#080614"; ctx.fillRect(px, py, scale, scale); continue; }
@@ -1123,6 +1217,15 @@ function draw() {
       ctx.fillStyle = coinMap[i] ? "rgba(255,225,77,.12)" : "rgba(0,240,255,.1)"; ctx.fillRect(px, py, scale, scale);
     }
     if (engMode && engTargets.includes(i)) { ctx.fillStyle = "rgba(255,225,77,.5)"; ctx.fillRect(px, py, scale, scale); }
+  }
+  if (ideology === "cyber") {
+    for (const p of Object.values(allPlayersCache)) {
+      const pollution = p?.designPollution;
+      if (!pollution || pollution.until <= srvNow()) continue;
+      ctx.beginPath();
+      ctx.arc(ox + (pollution.x + .5) * scale, oy + (pollution.y + .5) * scale, 5 * scale, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,43,214,.8)"; ctx.lineWidth = 2; ctx.stroke();
+    }
   }
 
   if (scale >= 4) {
@@ -1170,6 +1273,10 @@ function draw() {
           ctx.font = `${Math.floor(scale * .38)}px sans-serif`;
           ctx.fillText(tileIcon, px + scale * .8, py + scale * .2);
         }
+      }
+      if (workDrone && workDrone.x === x && workDrone.y === y && workDrone.until > srvNow()) {
+        ctx.font = `${Math.floor(scale * .38)}px sans-serif`;
+        ctx.fillText("🛠️", px + scale * .8, py + scale * .2);
       }
       if (lvl[i] > 0 && grid[i] && scale >= 11) {
         ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.floor(scale * .35)}px sans-serif`;
@@ -1255,6 +1362,16 @@ function updateInfo() {
   if (o === myId && isolatedSet.has(i)) t += ` <span class="tag no">⚠️隔離中</span>`;
   if (o && isProtected(oName)) t += ` <span class="tag ally">🛡️無敵保護</span>`;
   let s = "", ok = false;
+  const droneOwner = o === myId ? getDroneOwnerAt(i) : null;
+  if (droneOwner) {
+    const canRemove = coins >= 20 && metal >= 20;
+    info.innerHTML = `<div class="t">(${x},${y}) ${t}</div><small>🏗️ 工作ドローン稼働中: ${esc(droneOwner)} / 解除 🪙20 ⚙️20</small>`;
+    btn.textContent = "ドローン解除";
+    btn.disabled = !canRemove || busy;
+    btn.onclick = removeWorkDrone;
+    return;
+  }
+  btn.onclick = () => (selected && ownerAt(selected.x, selected.y) === myId) ? upgrade() : claim();
   if (o === myId) {
     const maxL = ideology === "military" ? MAX_LV_MIL : MAX_LV_BASE;
     if (lvl[i] >= maxL) s = `🛡️ Lv${lvl[i]} MAX`;
