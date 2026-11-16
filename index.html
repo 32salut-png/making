@@ -725,6 +725,7 @@ async function loadPlayer() {
   skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
   capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
   for (const k in inv) inv[k] = p.items?.[k] || 0;
+  if ((p.items?.sniper || 0) > 0) inv.bunker += p.items.sniper;
   playerLoaded = true;
   if (normalizeTick && myName !== "Guest") savePlayer();
   recalcSupply();
@@ -1729,7 +1730,7 @@ setInterval(() => {
   updateInfo();
   if ($("ideoModal").classList.contains("show")) renderIdeoModal();
 }, 1000);
-setInterval(() => { syncAllianceAndVassal(); checkMailbox(); }, 30000);
+setInterval(() => { syncAllianceAndVassal(); checkMailbox(); }, 5000);
 setInterval(() => { autoEventTick(); }, 45000);
 </script>
 </body>
