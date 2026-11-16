@@ -48,6 +48,14 @@
   #rank { position:absolute; right:10px; top:10px; width:275px; max-height:80%; overflow:auto; border-radius:12px; padding:10px; font-size:12.5px; display:none; background:rgba(11,8,32,.96); z-index:5; }
   #rank.show { display:block; }
   .tabs { display:flex; gap:5px; margin-bottom:8px; align-items:center; }
+  .help-tabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; margin-bottom:8px; }
+  .help-tabs button { padding:6px 4px; border:1px solid rgba(0,240,255,.4); border-radius:7px; background:transparent; color:var(--sub); cursor:pointer; font-weight:700; font-size:11px; }
+  .help-tabs button.on { color:#fff; border-color:var(--cyan); background:rgba(0,240,255,.14); }
+  .help-page { display:none; max-height:62vh; overflow:auto; padding-right:3px; }
+  .help-page.on { display:block; }
+  .help-page h4 { color:var(--cyan); margin:10px 0 4px; font-size:12px; }
+  .help-page ul { padding-left:17px; margin:3px 0 9px; }
+  .help-page li { margin-bottom:4px; }
   .tabs button { flex:1; padding:5px; font-size:11.5px; border:1px solid rgba(0,240,255,.4); border-radius:7px; background:transparent; color:var(--sub); cursor:pointer; font-weight:700; }
   .tabs button.on { color:#05030f; background:var(--cyan); }
   .tabs #rankClose { flex:none; width:28px; height:28px; padding:0; border-color:var(--mag); color:var(--mag); }
@@ -217,49 +225,130 @@
 <!-- ヘルプモーダル（完全ルール辞書） -->
 <div id="helpModal" class="modal"><div class="box neon">
   <h3>📖 NEON TERRITORY 完全ルール辞書</h3>
+  <div class="help-tabs">
+    <button class="on" data-help-page="basic">基本</button>
+    <button data-help-page="faction">職業</button>
+    <button data-help-page="combat">攻撃・防衛</button>
+    <button data-help-page="items">アイテム</button>
+    <button data-help-page="alliance">同盟・市場</button>
+    <button data-help-page="victory">勝利・イベント</button>
+  </div>
   <div style="font-size:11.5px;line-height:1.55">
-    <div style="color:var(--cyan);font-weight:800;margin-top:4px">⏰ 1. 基本ルール・保護・本拠地</div>
-    <ul style="padding-left:16px;margin:2px 0 7px">
-      <li><b>稼働時間(平日9:00〜17:00)</b>: 17:00〜翌9:00と土日は<b>完全時間停止</b>(生産・CT・勝利タイマー停止)。</li>
-      <li><b>初狩り防止</b>: 開始から2時間(100マス未満＆未攻撃)は無敵保護。100マス到達か他者攻撃で解除。</li>
-      <li><b>🏰 本拠地(コア)</b>: 奪取コスト+5🪙の防衛補正。奪われると<b>全コイン＆資源の25%を強奪</b>され、1時間収入半減！</li>
-      <li><b>🔗 補給線と隔離</b>: 本拠地/仮拠点と繋がっていない孤立マスは収入0＆毎時40%でLvダウン(Lv0は中立化)。</li>
-      <li><b>🏛️ 帝国維持費</b>: 100マス超から10マスごとに毎時コイン収入-1%(最大50%減)。</li>
-      <li><b>⚔️ 1位包囲網</b>: 1位が「2位の2倍以上かつ150マス以上」になると、全員から1位への攻撃コストが<b>半額</b>。</li>
-    </ul>
-
-    <div style="color:var(--mag);font-weight:800">🤝 2. 同盟・植民地・独立戦争</div>
-    <ul style="padding-left:16px;margin:2px 0 7px">
-      <li><b>同盟(最大3人)</b>: 結成/加入🪙30。同盟維持費として毎時収入から<b>10%天引き</b>。</li>
-      <li><b>⛓️ 植民地化</b>: 敵を残り1マスにすると自動服従(毎時50%上納・宗主国への攻撃不可)。宗主国が全滅すると解放。</li>
-      <li><b>🔥 独立戦争</b>: 植民地は同盟画面から宣言可能(CT6h/1時間有効)。期間中は宗主国へコスト半額で反撃でき、<b>5マス奪還</b>または<b>30マス回復</b>で独立！</li>
-    </ul>
-
-    <div style="color:var(--gold);font-weight:800">🎭 3. 5大イデオロギー (五つ巴の相性)</div>
-    <ul style="padding-left:16px;margin:2px 0 7px">
-      <li><b>💰 資本</b>: 毎時コイン+30%。十字5マスを金脈化(CT12h・<b>※他人が奪うと通常マスに戻る</b>)。<b>[対軍閥]</b> Lv4〜5要塞をLv引き継ぎ奪取。</li>
-      <li><b>🛡️ 軍閥</b>: 防衛上限Lv5。3×3砲撃(CT3h/敵Lv1即奪取/敵高Lv-2/味方Lv+2)。<b>[対ゲリラ]</b> 自陣周囲2マス以内の飛び石・仮拠点禁止 ＆ <b>ゲリラからの攻撃コスト2倍</b> ＆ <b>仮拠点1マス奪取で残りを連鎖崩壊</b>。 </li>
-      <li><b>⚡ ゲリラ</b>: 1マス空け(飛び石)配置＆補給維持。2×2仮拠点設営(CT4h・全滅で消滅)。<b>[対電脳]</b> 奪取時コスト返還+相手資産10%強奪。</li>
-      <li><b>🔬 電脳</b>: 全員のデータ詳細を閲覧、アイテム効果時間+25%。1h分の報酬獲得＋同盟CT50%短縮(CT3h)。<b>[対工兵]</b> 半径5マスを2時間汚染し、改造結果をランダム化(CT6h)。</li>
-      <li><b>🏗️ 工兵</b>: 強化＆製造の素材25%減。好きな最大5マスを防壁(敵奪取+8🪙)や資源マスへ改造(CT4h)。<b>[対資本]</b> 十字5マスの中心に工作ドローンを置き、合計収入の50%を獲得。資本からの攻撃コスト2倍。</li>
-    </ul>
-
-    <div style="color:var(--cyan);font-weight:800">🔨 4. 兵器・バリア & 🎲 ランダムイベント</div>
-    <ul style="padding-left:16px;margin:2px 0 7px">
-      <li><b>🛡️ ナノシールド</b>: 12時間有効。1重ねにつき<b>毎時3回</b>防御枠(重ね買い上限なし)。</li>
-      <li><b>⚡ EMP / 🎯 バンカーバスター</b>: EMPはバリアを5分無効化(4重ね以上に対策有効)。🎯はバリア・要塞貫通で1マス破壊。</li>
-      <li><b>☄️ 隕石</b>: 大量の物資を取得できる超鉱脈。</li>
-      <li><b>🌫️ 濃霧</b>: 自同盟4マス外が不可視。</li>
-      <li><b>🎯 賞金首</b>: 1位のマスを奪うとコスト全額返還&+5🪙。</li>
-      <li><b>🕵️‍♂️ 闇商人</b>: 正時0〜9分にランダムで最下位の元へ闇商人出現。</li>
-    </ul>
-
-    <div style="color:var(--lime);font-weight:800">👑 5. 3大特殊勝利ルート (達成で即優勝)</div>
-    <ul style="padding-left:16px;margin:2px 0 4px">
-      <li><b>覇権勝利</b>: 工場6箇所＋1,000マスを稼働16時間維持(他者攻撃コスト半額)。</li>
-      <li><b>次元ゲート</b>: 3段階(計木3000/灰3500/鉄4500/🪙18000)投入後、中心3×3を稼働12時間防衛(破壊で阻止)。</li>
-      <li><b>経済掌握</b>: 50,000🪙供託＋金脈40%以上を稼働16時間維持(奪われると金庫から100🪙強奪)。</li>
-    </ul>
+    <div class="help-page on" data-help-content="basic">
+      <h4>⏰ 時間と毎日の流れ</h4>
+      <ul>
+        <li>稼働時間は平日9:00〜17:00。夜間・土日は、生産・報酬・CT・勝利タイマーが停止します。</li>
+        <li>毎日12:00にデイリー報酬🪙20。時給報酬は正時にまとめて精算されます。</li>
+        <li>時刻は端末時計ではなく、Firebaseのサーバー時刻を基準にしています。</li>
+      </ul>
+      <h4>🏰 拠点と領土</h4>
+      <ul>
+        <li>最初に獲得したマスが本拠地になります。本拠地は奪取コスト+5🪙です。</li>
+        <li>本拠地を奪われると、コイン・資源の25%を失い、1時間の間、生産が半減します。</li>
+        <li>開始から2時間、100マス未満かつ未攻撃なら初狩り防止保護が有効です。100マス到達または攻撃で解除されます。</li>
+        <li>領土は本拠地・仮拠点・接続したワープから補給されます。孤立マスは収入0、毎時40%でLv低下し、Lv0は中立化します。</li>
+        <li>100マスを超えると、10マスごとにコイン収入-1%。最大50%まで減少します。</li>
+      </ul>
+      <h4>🗺️ マップの見方</h4>
+      <ul>
+        <li>💰金脈はコイン、🌲木材・🌋火薬・⛰️金属は各資源を毎時生産します。資源マスはLvが高いほど収入が増えます。</li>
+        <li>🏭兵器工場・🔬先端研究所・🏗️工兵工場は、3×3の自領土で稼働します。</li>
+        <li>🌀ワープは接続済みのものだけ補給・配置に利用できます。</li>
+      </ul>
+    </div>
+    <div class="help-page" data-help-content="faction">
+      <h4>🎭 職業の選び方</h4>
+      <ul>
+        <li>職業は1つだけ選択できます。変更には🪙50が必要で、変更後24時間は再変更できません。</li>
+        <li>①は常時パッシブ、②は主スキル、③は特定職対策スキルです。スキルは稼働時間中のみ進行します。</li>
+      </ul>
+      <h4>💰 資本（メガコープ）</h4>
+      <ul><li>毎時コイン+30%。②ゴールドラッシュは指定地点と上下左右の5マスを金脈化（CT12h）。奪われると通常化します。軍閥のLv4〜5要塞をLv維持で奪取できます。</li></ul>
+      <h4>🛡️ 軍閥（アイアン）</h4>
+      <ul><li>防衛上限Lv5。②絨毯制圧砲撃は3×3を攻撃し、敵Lv1を奪取・高Lvを-2・味方を+2（CT3h）。ゲリラの飛び石・仮拠点を封じ、ゲリラからの攻撃コストを2倍にします。</li></ul>
+      <h4>⚡ ゲリラ（ノーマッド）</h4>
+      <ul><li>1マス空けの飛び石配置と補給が可能。②秘密野営地は空き地に2×2仮拠点を設置（CT4h）。電脳マスを奪うと、奪取コスト返還＋相手資産10%強奪。</li></ul>
+      <h4>🔬 電脳（サイバー）</h4>
+      <ul><li>全員の詳細データを閲覧でき、アイテム効果時間+25%。②データ加速は1時間分の報酬を得て、同盟メンバーの残りCTを50%短縮（CT3h）。③設計図汚染は半径5マスを2時間、工兵改造結果をランダム化（CT6h）。</li></ul>
+      <h4>🏗️ 工兵（エンジニア）</h4>
+      <ul><li>強化・製造コスト25%減。②最大5マスを防壁・資源マスへ改造（CT4h）。③資本の金脈を十字の中心に工作ドローンを設置し、十字5マスの合計収入50%を獲得（CT6h）。</li></ul>
+    </div>
+    <div class="help-page" data-help-content="combat">
+      <h4>⚔️ 領土の獲得</h4>
+      <ul>
+        <li>通常の空きマスは🪙1、敵マスは🪙3を基本に、Lv・要塞・本拠地・防壁でコストが増えます。</li>
+        <li>自領土に隣接、接続ワープ周辺、またはゲリラの飛び石条件を満たす場所だけ獲得できます。</li>
+        <li>同盟員・保護中の相手・自分の領土は攻撃できません。</li>
+        <li>敵を残り1マスまで追い込むと、相手は自動的に植民地化されます。</li>
+      </ul>
+      <h4>🛡️ 防衛と強化</h4>
+      <ul>
+        <li>通常の防衛上限はLv3。軍閥だけLv5まで強化できます。</li>
+        <li>強化費はLvごとに🪙3・6・10・16・25。工兵は必要素材25%減です。</li>
+        <li>ナノシールドは攻撃を防ぎます。毎時の防御枠を使い切ると、次の攻撃から通常通り破壊されます。</li>
+        <li>防壁は奪取コスト+8🪙。工兵の防壁を奪うと、工兵側に🪙8が入ります。</li>
+      </ul>
+      <h4>🏹 特殊攻撃</h4>
+      <ul>
+        <li>ミサイルは敵最大20マスをランダム攻撃。メガボムは指定中心5×5を攻撃。衛星レーザーは指定行を最大25マス攻撃します。</li>
+        <li>バンカーバスターはバリア・要塞を無視して指定1マスを確実に破壊します。EMPは敵バリアを約5分無効化します。</li>
+      </ul>
+    </div>
+    <div class="help-page" data-help-content="items">
+      <h4>🔨 工場と製造</h4>
+      <ul>
+        <li>兵器工場はミサイル・メガボム・バンカーバスター、先端研究所はEMP・ナノシールド・衛星レーザー、工兵工場は空挺ビーコン・超ブーストを製造します。</li>
+        <li>同じアイテムは最大5個まで所持できます。工場は3×3の自領土で稼働します。</li>
+        <li>工兵は製造費25%減。電脳は時間制アイテムの効果時間+25%です。</li>
+      </ul>
+      <h4>📦 アイテム一覧</h4>
+      <ul>
+        <li>🚀ミサイル：🪙2・🪵4・💥14・⚙️8。敵最大20マスをランダム攻撃。</li>
+        <li>💣メガボム：🪙3・💥18・⚙️12。指定中心5×5を攻撃。</li>
+        <li>🎯バンカーバスター：🪙3・💥12・⚙️18。指定1マスを確実に破壊。</li>
+        <li>⚡EMP：🪙5・🪵10・💥25・⚙️45。敵バリアを5分無効化。</li>
+        <li>🛡️ナノシールド：🪙3・🪵8・⚙️12。12時間、1個ごとに毎時3回防御。</li>
+        <li>🛰️衛星レーザー：🪙4・💥16・⚙️22。指定行を最大25マス攻撃。</li>
+        <li>🎫空挺ビーコン：🪙20・🪵60・💥30・⚙️20。好きな空き地へ降下占領。</li>
+        <li>⚡超ブースト：🪙50・🪵80・💥80・⚙️80。24時間、全資源・コイン産出2倍。</li>
+      </ul>
+    </div>
+    <div class="help-page" data-help-content="alliance">
+      <h4>🤝 同盟</h4>
+      <ul>
+        <li>同盟は最大3人。結成・加入に🪙30、毎時収入から10%の維持費がかかります。</li>
+        <li>同盟員同士は攻撃不可。市場で同盟限定出品ができ、電脳のデータ加速は同盟員全員のCTを短縮します。</li>
+        <li>同盟画面から招待・脱退・植民地の管理・独立戦争の宣言を行います。</li>
+      </ul>
+      <h4>⛓️ 植民地と独立戦争</h4>
+      <ul>
+        <li>敵を残り1マスまで追い込むと自動服従。植民地は毎時収入の50%を宗主国へ上納し、宗主国を攻撃できません。</li>
+        <li>独立戦争はCT6h・1時間。期間中は宗主国への攻撃コスト半額、5マス奪還または30マス回復で独立します。</li>
+      </ul>
+      <h4>⚖️ 貿易マーケット</h4>
+      <ul>
+        <li>資源・コイン・アイテムを出品できます。公開輸入、同盟限定購入、輸出の3画面があります。</li>
+        <li>同盟限定品は価格0でも出品可能です。取引後は受取側の所持品に反映されます。</li>
+      </ul>
+    </div>
+    <div class="help-page" data-help-content="victory">
+      <h4>👑 特殊勝利（達成で即優勝）</h4>
+      <ul>
+        <li>覇権制圧：工場6箇所＋1,000マスを稼働16時間維持。達成中は他者からの攻撃コストが半額になります。</li>
+        <li>次元ゲート：木材3,000・火薬3,500・金属4,500・🪙18,000を3段階投入し、中心3×3を稼働12時間防衛します。</li>
+        <li>世界経済掌握：🪙50,000を供託し、金脈40%以上を稼働16時間維持します。金脈比率が下がると阻止されます。</li>
+      </ul>
+      <h4>🎲 ランダムイベント</h4>
+      <ul>
+        <li>🎰ギャンブル・アワー（1h）：強化が50%で+2Lv、失敗するとコイン没収。</li>
+        <li>🎭仮面舞踏会（2h）：敵マスの所有者が不明になります。</li>
+        <li>☄️隕石（3h）：ランダム地点に落下し、その地点の所有者が毎時🪙10・各資源5を得ます。</li>
+        <li>🌫️濃霧（2h）：自分の周囲4マス以外が不可視になります。</li>
+        <li>🕵️‍♂️闇商人：正時0〜9分に、最下位プレイヤーのもとへ出現します。</li>
+      </ul>
+      <h4>🏆 通常の勝ち筋</h4>
+      <ul><li>領土・資産・工場を伸ばし、相手の補給線を切り、イベントと職業スキルを使って勝利条件を先に達成しましょう。</li></ul>
+    </div>
   </div>
   <button class="mclose" id="helpClose">閉じる</button>
 </div></div>
@@ -1750,6 +1839,11 @@ $("btnCraft").onclick = () => { renderCraftModal(); $("craftModal").classList.ad
 $("craftClose").onclick = () => $("craftModal").classList.remove("show");
 $("btnHelp").onclick = () => $("helpModal").classList.add("show");
 $("helpClose").onclick = () => $("helpModal").classList.remove("show");
+document.querySelectorAll("[data-help-page]").forEach(b => b.onclick = () => {
+  const page = b.dataset.helpPage;
+  document.querySelectorAll("[data-help-page]").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("[data-help-content]").forEach(x => x.classList.toggle("on", x.dataset.helpContent === page));
+});
 $("merchantClose").onclick = () => $("merchantModal").classList.remove("show");
 $("btnRank").onclick = () => { $("rank").classList.toggle("show"); renderRank(); };
 $("rankClose").onclick = () => $("rank").classList.remove("show");
