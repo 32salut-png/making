@@ -1030,7 +1030,6 @@ function parseCell(v) {
 
 // ===== メインアクション: 獲得 & 強化 =====
 let selected = null, busy = false, engMode = false, engTargets = [], skillMode = null;
-let lastHourlyCountdown = "";
 
 async function claim() {
   if (!selected || busy || myName === "Guest") return;
@@ -1380,11 +1379,11 @@ function updateAlertBar() {
   const siegeT = getSiegeTarget();
   if (siegeT && siegeT !== myName) html += `<div class="pill warn">⚔️ 包囲網発動中: ${esc(siegeT)} への攻撃コスト半額！</div>`;
   if (isProtected(myName)) html += `<div class="pill">🛡️ 初心者保護中 (他者攻撃不可 / 100マス未満)</div>`;
-  if (worldEvents.meteor && worldEvents.meteor.until > now) html += `<div class="pill gold" style="cursor:pointer" onclick="scale=20;centerOn(${worldEvents.meteor.x}+.5,${worldEvents.meteor.y}+.5)">☄️ 隕石落下中 (${worldEvents.meteor.x},${worldEvents.meteor.y}) 残り${fmtM(worldEvents.meteor.until - now)} (タップで移動)</div>`;
-  if (worldEvents.fog && worldEvents.fog.until > now) html += `<div class="pill warn">🌫️ 濃霧発生中 (周囲4マス以外不可視) 残り${fmtM(worldEvents.fog.until - now)}</div>`;
-  if (isEvtOn("gamble")) html += `<div class="pill gold">🎰 ギャンブル・アワー: 強化は50%で+2Lv / 失敗でコイン没収 残り${fmtM(worldEvents.gamble.until - now)}</div>`;
+  if (worldEvents.meteor && worldEvents.meteor.until > now) html += `<div class="pill gold" style="cursor:pointer" onclick="scale=20;centerOn(${worldEvents.meteor.x}+.5,${worldEvents.meteor.y}+.5)">☄️ 隕石落下中 (${worldEvents.meteor.x},${worldEvents.meteor.y}) 残り${countdownHTML("meteor", worldEvents.meteor.until - now, fmtM)} (タップで移動)</div>`;
+  if (worldEvents.fog && worldEvents.fog.until > now) html += `<div class="pill warn">🌫️ 濃霧発生中 (周囲4マス以外不可視) 残り${countdownHTML("fog", worldEvents.fog.until - now, fmtM)}</div>`;
+  if (isEvtOn("gamble")) html += `<div class="pill gold">🎰 ギャンブル・アワー: 強化は50%で+2Lv / 失敗でコイン没収 残り${countdownHTML("gamble", worldEvents.gamble.until - now, fmtM)}</div>`;
   const mk = isEvtOn("mask");
-  if (mk) html += `<div class="pill warn">🎭 仮面舞踏会: 敵マスの所有者が不明 残り${fmtM(worldEvents.mask.until - now)}</div>`;
+  if (mk) html += `<div class="pill warn">🎭 仮面舞踏会: 敵マスの所有者が不明 残り${countdownHTML("mask", worldEvents.mask.until - now, fmtM)}</div>`;
   if (mk !== maskPrev) { maskPrev = mk; dirty = true; }
   const dNow = new Date(now), isMerchWin = dNow.getMinutes() < 10 && ((dNow.getHours() * 131 + dNow.getDate() * 37) % 2 === 0);
   const low = getLowestPlayer();
@@ -1563,6 +1562,15 @@ cv.addEventListener("wheel", e => { e.preventDefault(); const wx = (e.offsetX - 
 function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3200); }
 const fmt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => String(v).padStart(2, "0")).join(":"); };
 const fmtM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+const countdownPrev = {};
+function countdownHTML(key, ms, formatter = fmt) {
+  const value = formatter(ms), prev = countdownPrev[key] || "";
+  countdownPrev[key] = value;
+  return [...value].map((char, i) => {
+    const changed = char !== prev[i] && /[0-9]/.test(char);
+    return `<span class="countdown-digit${changed ? " tick" : ""}">${char}</span>`;
+  }).join("");
+}
 function nextDailyReset(ts) {
   const next = new Date(ts);
   next.setHours(12, 0, 0, 0);
@@ -1582,14 +1590,9 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const now = srvNow();
   const remH = Math.max(0, nextHourlyRewardAt(now) - now);
-  const hourlyCountdown = fmt(remH);
-  $("nextH").innerHTML = `⏱ ${[...hourlyCountdown].map((char, i) => {
-    const changed = char !== lastHourlyCountdown[i] && /[0-9]/.test(char);
-    return `<span class="countdown-digit${changed ? " tick" : ""}">${char}</span>`;
-  }).join("")}`;
-  lastHourlyCountdown = hourlyCountdown;
+  $("nextH").innerHTML = `⏱ ${countdownHTML("hourly", remH)}`;
   const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
-  $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
+  $("dailyTimer").innerHTML = countdownHTML("daily", nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
   const totInv = Object.values(inv).reduce((a, b) => a + b, 0);
   $("mBadge").textContent = totInv; $("mBadge").style.display = totInv > 0 ? "flex" : "none";
