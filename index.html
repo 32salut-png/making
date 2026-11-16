@@ -281,14 +281,18 @@ let refreshT = 0, fogMask = null, maskPrev = false;
 const isEvtOn = k => { const e = worldEvents[k]; return !!(e && e.until > srvNow()); };
 
 // ===== サーバー時刻 & 9:00-17:00 稼働時間エンジン =====
-let serverOffset = 0, timeReady = false, adminBypassTime = false;
-const srvNow = () => Date.now() + serverOffset;
+let serverEpoch = 0, serverMono = 0, timeReady = false, adminBypassTime = false;
+const srvNow = () => timeReady ? serverEpoch + (performance.now() - serverMono) : 0;
 async function syncTime() {
-  const t0 = Date.now();
+  const t0 = performance.now();
   try {
     const r = await fetch(`${DB}/gameData/${GAME_ID}/serverTime/${encodeURIComponent(myName)}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({".sv":"timestamp"}) });
-    const v = await r.json(), t1 = Date.now();
-    if (typeof v === "number") { serverOffset = Math.round(v - (t0 + t1) / 2); timeReady = true; }
+    const v = await r.json(), t1 = performance.now();
+    if (typeof v === "number") {
+      serverEpoch = v;
+      serverMono = (t0 + t1) / 2;
+      timeReady = true;
+    }
   } catch (_) {}
 }
 setInterval(() => syncTime().catch(() => {}), 300000);
