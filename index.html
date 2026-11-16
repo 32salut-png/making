@@ -116,7 +116,7 @@
     <div class="card neon"><div class="l">Player / 陣営</div><div id="name"><span class="swatch" id="sw"></span><span id="uName"></span></div></div>
     <div class="card neon coin">
       <div class="wealth-row">
-        <div><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div></div>
+        <div><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span><small id="incCoin">(+0)</small></div></div>
         <div><div class="l">Resources (毎時)</div><div class="resource-v">
           <span>🪵<b id="rWood">0</b><small id="incWood">(+0)</small></span>
           <span>💥<b id="rPowder">0</b><small id="incPowder">(+0)</small></span>
@@ -1570,6 +1570,7 @@ function nextDailyReset(ts) {
 function updateInfo() {
   $("coins").textContent = coins; $("rWood").textContent = wood; $("rPowder").textContent = powder; $("rMetal").textContent = metal;
   const inc = myResInc();
+  $("incCoin").textContent = `(+${inc.c})`;
   $("incWood").textContent = `(+${inc.w})`; $("incPowder").textContent = `(+${inc.p})`; $("incMetal").textContent = `(+${inc.m})`;
   $("myCells").textContent = myCount();
   let rnk = 1; for (let k = 1; k < counts.length; k++) if (counts[k] > myCount()) rnk++;
@@ -1578,7 +1579,7 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const now = srvNow();
   const remH = Math.max(0, nextHourlyRewardAt(now) - now);
-  $("nextH").textContent = `⏱ ${fmt(remH)} (+${inc.c}🪙)`;
+  $("nextH").textContent = `⏱ ${fmt(remH)}`;
   const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
