@@ -308,7 +308,7 @@
         <li>💣メガボム：🪙3・💥18・⚙️12。指定中心5×5を攻撃。</li>
         <li>🎯バンカーバスター：🪙3・💥12・⚙️18。指定1マスを確実に破壊。</li>
         <li>⚡EMP：🪙5・🪵10・💥25・⚙️45。敵バリアを5分無効化。</li>
-        <li>🛡️ナノシールド：🪙3・🪵8・⚙️12。12時間、1個ごとに毎時3回防御。</li>
+        <li>🛡️ナノシールド：🪙3・🪵8・⚙️12。12時間、1個ごとに毎時3回防御。要塞は毎時、効果1時間のミニシールドを要塞数分（最大3回分）配布します。</li>
         <li>🛰️衛星レーザー：🪙4・💥16・⚙️22。指定行を最大25マス攻撃。</li>
         <li>🎫空挺ビーコン：🪙20・🪵60・💥30・⚙️20。好きな空き地へ降下占領。</li>
         <li>⚡超ブースト：🪙50・🪵80・💥80・⚙️80。24時間、全資源・コイン産出2倍。</li>
@@ -356,7 +356,7 @@
       <h4>🌲 木材・🌋 火薬・⛰️ 金属</h4>
       <ul><li>それぞれ対応する資源を毎時2＋マスLv生産します。工兵の改造で自領土のマスを資源マスへ変更できます。</li></ul>
       <h4>🛡️ 要塞</h4>
-      <ul><li>敵として獲得すると通常より防御コストが高くなります。資本は軍閥のLv4〜5要塞をLv維持で奪取できます。バンカーバスターは要塞補正を無視します。</li></ul>
+      <ul><li>所有中の要塞は、毎時ミニナノシールドを1回分配布します。要塞数に応じて最大3回分まで重ねて保持でき、効果は1時間です。敵として獲得すると通常より防御コストが高く、資本は軍閥のLv4〜5要塞をLv維持で奪取できます。バンカーバスターは要塞補正を無視します。</li></ul>
       <h4>🌀 ワープ</h4>
       <ul><li>自分が接続状態で確保したワープは、ワープ同士と周囲のマスを補給線・配置起点として扱えます。孤立中のワープは利用できません。</li></ul>
       <h4>🏭 🔬 🏗️ 工場</h4>
@@ -508,6 +508,19 @@ const names = [null], counts = [0], idMap = new Map();
 function idOf(n) { let i = idMap.get(n); if (!i) { i = names.length; names.push(n); counts.push(0); idMap.set(n, i); } return i; }
 const myId = idOf(myName), myCount = () => counts[myId];
 const megaFactories = [], warpList = []; let hasWarp = false;
+function getFortressCount() {
+  let count = 0;
+  for (let i = 0; i < grid.length; i++) if (grid[i] === myId && spec[i] === TYPE_FORT && !isolatedSet.has(i)) count++;
+  return count;
+}
+function refreshMiniShield(now = srvNow()) {
+  if (miniShieldUntil > now) return false;
+  const hadMiniShield = miniShieldStacks > 0 || miniShieldUntil > 0;
+  const fortresses = getFortressCount();
+  miniShieldStacks = isActiveTime(now) ? Math.min(3, fortresses) : 0;
+  miniShieldUntil = miniShieldStacks > 0 ? nextHourlyRewardAt(now) : 0;
+  return hadMiniShield || miniShieldStacks > 0;
+}
 
 (function initMap() {
   const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; };
@@ -552,7 +565,7 @@ function recalcWarp() { hasWarp = warpList.some(i => grid[i] === myId && !isolat
 let coins = 0, wood = 0, powder = 0, metal = 0, started = false, loadedOnce = false, playerLoaded = false;
 let ideology = null, ideoChangedAt = 0, core = null, camps = [], workDrone = null, designPollution = null, protectUntil = 0, protectBroken = false;
 let lastActiveTick = 0, lastDay = 0, skillCD = { main: 0, counter: 0 };
-let shieldUntil = 0, shieldStacks = 0, shieldUsedHr = -1, shieldUsedCnt = 0, empUntil = 0, boostUntil = 0, beaconArmed = false;
+let shieldUntil = 0, shieldStacks = 0, miniShieldStacks = 0, miniShieldUntil = 0, shieldUsedHr = -1, shieldUsedCnt = 0, empUntil = 0, boostUntil = 0, beaconArmed = false;
 let capitalFallUntil = 0, rebelUntil = 0, rebelCD = 0, rebelHits = 0;
 const inv = { missile:0, bomb:0, shield:0, ticket:0, boost:0, bunker:0, emp:0, laser:0 };
 let allPlayersCache = {}, worldEvents = {}, worldWonders = {};
@@ -766,6 +779,7 @@ async function processHourlyAndDecay() {
   if (myName === "Guest" || !playerLoaded || !loadedOnce || !timeReady) return;
   checkVictoryCompletion();
   const now = srvNow();
+  if (refreshMiniShield(now)) savePlayer();
   if (!lastActiveTick) { lastActiveTick = now; savePlayer(); return; }
   const hrs = activeHoursSince(lastActiveTick, now);
   const dIdx = Math.floor((now - 12 * HOUR) / DAY);
@@ -847,7 +861,7 @@ async function savePlayer() {
   if (myName === "Guest" || !playerLoaded) return;
   const doc = {
     coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps, workDrone, designPollution,
-    protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
+    protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, miniShieldStacks, miniShieldUntil, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
   };
   await fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) }).catch(()=>{});
 }
@@ -863,7 +877,7 @@ async function loadPlayer() {
   protectUntil = p.protectUntil || 0; protectBroken = !!p.protectBroken;
   lastActiveTick = Math.floor((p.lastActiveTick || srvNow()) / HOUR) * HOUR; lastDay = p.day || 0;
   const normalizeTick = !p.lastActiveTick || p.lastActiveTick !== lastActiveTick;
-  skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
+  skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; miniShieldStacks = Math.min(3, p.miniShieldStacks || 0); miniShieldUntil = p.miniShieldUntil || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
   capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
   for (const k in inv) inv[k] = p.items?.[k] || 0;
   if ((p.items?.sniper || 0) > 0) inv.bunker += p.items.sniper;
@@ -1553,13 +1567,15 @@ function canCraft(it) {
   return coins >= Math.floor(it.cost.c * mult) && wood >= Math.floor(it.cost.w * mult) && powder >= Math.floor(it.cost.p * mult) && metal >= Math.floor(it.cost.m * mult);
 }
 function renderCraftModal() {
-  const shActive = shieldUntil > srvNow() && empUntil < srvNow();
-  const curHr = Math.floor(srvNow() / HOUR);
+  refreshMiniShield();
+  const now = srvNow();
+  const shActive = (shieldUntil > now || miniShieldStacks > 0) && empUntil < now;
+  const curHr = Math.floor(now / HOUR);
   const used = shieldUsedHr === curHr ? shieldUsedCnt : 0;
-  const maxDef = shieldStacks * 3;
+  const maxDef = shieldStacks * 3 + miniShieldStacks;
   $("craftCoins").textContent = `🪙${coins} 🪵${wood} 💥${powder} ⚙️${metal}`;
   const facW = myFac(FAC_WEAPON), facT = myFac(FAC_TECH), facE = myFac(FAC_ENG);
-  $("craftFacStatus").innerHTML = `3×3工場: <span class="tag ${facW?'ok':'no'}">🏭兵器:${facW?'稼':'未'}</span> <span class="tag ${facT?'ok':'no'}">🔬先端:${facT?'稼':'未'}</span> <span class="tag ${facE?'ok':'no'}">🏗️工兵:${facE?'稼':'未'}</span> | 🛡️バリア: <b>${shActive ? `${shieldStacks}重ね(毎時残り ${maxDef - used}/${maxDef}回)` : "無効"}</b> ${empUntil > srvNow() ? `<span class="tag no">⚡EMP無力化中(${fmtM(empUntil - srvNow())})</span>`:""}`;
+  $("craftFacStatus").innerHTML = `3×3工場: <span class="tag ${facW?'ok':'no'}">🏭兵器:${facW?'稼':'未'}</span> <span class="tag ${facT?'ok':'no'}">🔬先端:${facT?'稼':'未'}</span> <span class="tag ${facE?'ok':'no'}">🏗️工兵:${facE?'稼':'未'}</span> | 🛡️バリア: <b>${shActive || miniShieldStacks > 0 ? `${shieldStacks}重ね＋要塞ミニ${miniShieldStacks}回 (毎時残り ${Math.max(0, maxDef - used)}/${maxDef}回)` : "無効"}</b> ${empUntil > srvNow() ? `<span class="tag no">⚡EMP無力化中(${fmtM(empUntil - srvNow())})</span>`:""}`;
   let mult = ideology === "engineer" ? 0.75 : 1.0;
   $("craftList").innerHTML = CRAFT_ITEMS.map(it => {
     const ok = canCraft(it), hasF = myFac(it.fac), cnt = inv[it.id] || 0;
@@ -1583,8 +1599,9 @@ async function consumeShield(oName, now) {
     if (!etag || !p) return null;
     const curHr = Math.floor(now / HOUR);
     const used = p.shieldUsedHr === curHr ? (p.shieldUsedCnt || 0) : 0;
-    const maxDef = (p.shieldStacks || 0) * 3;
-    if ((p.shieldUntil || 0) <= now || (p.empUntil || 0) >= now || used >= maxDef) return false;
+    const miniActive = (p.miniShieldUntil || 0) > now && (p.miniShieldStacks || 0) > 0;
+    const maxDef = (p.shieldStacks || 0) * 3 + (miniActive ? Math.min(3, p.miniShieldStacks || 0) : 0);
+    if (((p.shieldUntil || 0) <= now && !miniActive) || (p.empUntil || 0) >= now || used >= maxDef) return false;
     const next = { ...p, shieldUsedHr:curHr, shieldUsedCnt:used + 1 };
     const saved = await fetch(url, { method:"PUT", headers:{"Content-Type":"application/json", "if-match":etag}, body:JSON.stringify(next) }).catch(() => null);
     if (saved?.ok) { allPlayersCache[oName] = next; return true; }
