@@ -606,7 +606,7 @@ async function processHourlyAndDecay() {
   if (dIdx > lastDay && isActiveTime(now)) { coins += DAILY_COINS; lastDay = dIdx; changed = true; msgs.push(`🎁 デイリー +${DAILY_COINS}🪙`); }
   const actMs = activeMsBetween(lastActiveTick, now);
   if (hrs > 0) {
-    const n = Math.min(hrs, 24), inc = myResInc(), mult = srvNow() < boostUntil ? 2 : 1;
+    const n = Math.min(hrs, 24), inc = myResInc(), mult = now < boostUntil ? 2 : 1;
     let gC = inc.c * n * mult, gW = inc.w * n * mult, gP = inc.p * n * mult, gM = inc.m * n * mult;
     if (inc.upkeepRate > 0) msgs.push(`🏛️ 帝国維持費: -${Math.round(inc.upkeepRate * 100)}%天引き適用`);
     if (myAlliance) {
@@ -1181,9 +1181,10 @@ function updateInfo() {
   $("myRank").textContent = myCount() > 0 ? `#${rnk}` : "";
   $("sw").style.background = cols(myName).fill; $("sw").style.color = cols(myName).fill;
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
-  const remH = HOUR - (activeMsBetween(lastActiveTick || srvNow(), srvNow()) % HOUR);
+  const now = srvNow();
+  const remH = HOUR - (activeMsBetween(lastActiveTick || now, now) % HOUR);
   $("nextH").textContent = `⏱ ${fmtM(remH)} (+${inc.c}🪙)`;
-  const now = srvNow(), dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
+  const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
   const totInv = Object.values(inv).reduce((a, b) => a + b, 0);
