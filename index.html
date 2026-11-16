@@ -1163,14 +1163,14 @@ function renderIdeoModal() {
       </div>
       <div class="crow">
         <div class="ci"><div class="ct">⚡ 一発スキル: ${d.aName}</div><div class="cd">${d.aDesc}</div></div>
-        <button class="cbtn gold" onclick="triggerMainSkill()" ${mainRem > 0 ? "disabled" : ""}>${mainRem > 0 ? fmt(mainRem) : "発動"}</button>
+        <button class="cbtn gold" onclick="triggerMainSkill()" ${mainRem > 0 ? "disabled" : ""}>${mainRem > 0 ? countdownHTML("skill-main", mainRem) : "発動"}</button>
       </div>
     `;
     if (ideology === "cyber" || ideology === "engineer") {
-      html += `<div class="crow"><div class="ci"><div class="ct">🎯 対策スキル: ${d.cName}</div><div class="cd">${d.cDesc}</div></div><button class="cbtn mag" onclick="${ideology === "cyber" ? "triggerCyberHack()" : "triggerEngineerDrone()"}" ${cntRem > 0 ? "disabled" : ""}>${cntRem > 0 ? fmt(cntRem) : "発動"}</button></div>`;
+      html += `<div class="crow"><div class="ci"><div class="ct">🎯 対策スキル: ${d.cName}</div><div class="cd">${d.cDesc}</div></div><button class="cbtn mag" onclick="${ideology === "cyber" ? "triggerCyberHack()" : "triggerEngineerDrone()"}" ${cntRem > 0 ? "disabled" : ""}>${cntRem > 0 ? countdownHTML("skill-counter", cntRem) : "発動"}</button></div>`;
     }
     const chgRem = Math.max(0, (ideoChangedAt + 24 * HOUR) - now);
-    html += `<div style="margin-top:12px;border-top:1px dashed rgba(255,255,255,.2);padding-top:8px"><button class="cbtn" style="width:100%" onclick="resetIdeo()" ${chgRem > 0 ? "disabled" : ""}>🔄 陣営変更 (${chgRem > 0 ? "残り"+fmt(chgRem) : "可能/🪙50"})</button></div>`;
+    html += `<div style="margin-top:12px;border-top:1px dashed rgba(255,255,255,.2);padding-top:8px"><button class="cbtn" style="width:100%" onclick="resetIdeo()" ${chgRem > 0 ? "disabled" : ""}>🔄 陣営変更 (${chgRem > 0 ? "残り"+countdownHTML("ideology-change", chgRem) : "可能/🪙50"})</button></div>`;
   }
   v.innerHTML = html;
 }
@@ -1993,7 +1993,7 @@ async function renderAllianceView() {
   }
   if (myOverlord) {
     const canReb = srvNow() >= rebelCD;
-    html += `<div class="custom-form" style="border-color:#ff5277;margin-top:8px"><div style="color:#ff5277;font-weight:800">⚠️ 宗主国: ${esc(myOverlord)} に服従中 (毎時50%上納)</div><div style="font-size:11px;margin:4px 0">独立条件: 宗主国を5マス奪還 または 30マス回復</div><button onclick="startRebellion()" ${canReb?"":"disabled"} style="background:#ff2d55;color:#fff">${rebelUntil>srvNow()?`🔥 独立戦争中(${rebelHits}/5マス)`:(canReb?"🔥 独立戦争を宣言(1時間限定)":"CT中 "+fmt(rebelCD-srvNow()))}</button></div>`;
+    html += `<div class="custom-form" style="border-color:#ff5277;margin-top:8px"><div style="color:#ff5277;font-weight:800">⚠️ 宗主国: ${esc(myOverlord)} に服従中 (毎時50%上納)</div><div style="font-size:11px;margin:4px 0">独立条件: 宗主国を5マス奪還 または 30マス回復</div><button onclick="startRebellion()" ${canReb?"":"disabled"} style="background:#ff2d55;color:#fff">${rebelUntil>srvNow()?`🔥 独立戦争中(${rebelHits}/5マス)`:(canReb?"🔥 独立戦争を宣言(1時間限定)":"CT中 "+countdownHTML("rebellion", rebelCD-srvNow()))}</button></div>`;
   }
   if (myVassals.length) html += `<div style="color:var(--gold);font-weight:800;margin-top:8px">👑 支配下の植民地: ${myVassals.map(esc).join(", ")}</div>`;
   $("allianceView").innerHTML = html;
