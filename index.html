@@ -24,6 +24,8 @@
   .wealth-row > div + div { border-left:1px solid rgba(255,255,255,.15); padding-left:10px; }
   .card.res .v { font-size:12px; display:flex; gap:5px; }
   .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #nextH.countdown-tick { animation:countdownTick .22s ease-out; }
+  @keyframes countdownTick { 0% { opacity:.55; transform:translateY(-1px); } 100% { opacity:1; transform:translateY(0); } }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
   #name { font-size:12px; font-weight:800; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .sp { flex:1; }
@@ -1028,6 +1030,7 @@ function parseCell(v) {
 
 // ===== メインアクション: 獲得 & 強化 =====
 let selected = null, busy = false, engMode = false, engTargets = [], skillMode = null;
+let lastHourlyCountdown = "";
 
 async function claim() {
   if (!selected || busy || myName === "Guest") return;
@@ -1579,7 +1582,15 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const now = srvNow();
   const remH = Math.max(0, nextHourlyRewardAt(now) - now);
-  $("nextH").textContent = `⏱ ${fmt(remH)}`;
+  const hourlyCountdown = `⏱ ${fmt(remH)}`;
+  if (hourlyCountdown !== lastHourlyCountdown) {
+    const timer = $("nextH");
+    timer.classList.remove("countdown-tick");
+    void timer.offsetWidth;
+    timer.classList.add("countdown-tick");
+    lastHourlyCountdown = hourlyCountdown;
+  }
+  $("nextH").textContent = hourlyCountdown;
   const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
