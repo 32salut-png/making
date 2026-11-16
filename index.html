@@ -1196,6 +1196,13 @@ function renderVictoryModal() {
   `;
 }
 window.startHegemony = async () => {
+  if (!isActiveTime()) return toast("⏰ 時間停止中です");
+  if (worldWonders.winner || worldWonders.hegemony?.holder) return toast("既に勝利条件が進行中です");
+  const myFacCount = megaFactories.filter(f => {
+    for (let dy=0;dy<3;dy++) for (let dx=0;dx<3;dx++) if (grid[(f.y+dy)*N+(f.x+dx)] === myId) return true;
+    return false;
+  }).length;
+  if (myFacCount < 6 || myCount() < 1000) return toast("覇権条件を満たしていません");
   const data = { holder: myAlliance?.id || myName, name: myAlliance?.name || myName, startedAt: srvNow(), reqMs: 16*HOUR };
   await fetch(`${DB}/gameData/${GAME_ID}/world/wonders/hegemony.json`, { method:"PUT", body:JSON.stringify(data) });
   toast("👑 覇権カウントダウン開始！稼働16時間耐え抜け！"); renderVictoryModal();
@@ -1213,6 +1220,12 @@ window.buildDimension = async () => {
   toast(`🏗️ 次元ゲート第${nxt.stage}段階完成！`); renderVictoryModal();
 };
 window.startEconomy = async () => {
+  if (!isActiveTime()) return toast("⏰ 時間停止中です");
+  if (worldWonders.winner || worldWonders.economy?.holder) return toast("既に勝利条件が進行中です");
+  const totalCoinsOnMap = coinMap.reduce((a,b)=>a+b, 0) || 1;
+  let myCoinsMap = 0;
+  for (let i=0;i<grid.length;i++) if (grid[i]===myId && coinMap[i]) myCoinsMap++;
+  if (coins < 50000 || myCoinsMap / totalCoinsOnMap < 0.4) return toast("経済掌握条件を満たしていません");
   coins -= 50000; savePlayer();
   const data = { holder: myAlliance?.id || myName, name: myAlliance?.name || myName, startedAt: srvNow(), reqMs: 16*HOUR };
   await fetch(`${DB}/gameData/${GAME_ID}/world/wonders/economy.json`, { method:"PUT", body:JSON.stringify(data) });
@@ -1561,21 +1574,32 @@ window.craftItem = id => {
   inv[id] = (inv[id] || 0) + 1; savePlayer(); updateInfo(); renderCraftModal(); toast(`🔨 ${it.icon}${it.name} を製造完了！`);
 };
 
-function hitTarget(x, y, bypassShield = false) {
+async function consumeShield(oName, now) {
+  const url = `${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oName)}.json`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url, { headers:{"X-Firebase-ETag":"true"} }).catch(() => null);
+    if (!res || !res.ok) return null;
+    const etag = res.headers.get("ETag"), p = await res.json();
+    if (!etag || !p) return null;
+    const curHr = Math.floor(now / HOUR);
+    const used = p.shieldUsedHr === curHr ? (p.shieldUsedCnt || 0) : 0;
+    const maxDef = (p.shieldStacks || 0) * 3;
+    if ((p.shieldUntil || 0) <= now || (p.empUntil || 0) >= now || used >= maxDef) return false;
+    const next = { ...p, shieldUsedHr:curHr, shieldUsedCnt:used + 1 };
+    const saved = await fetch(url, { method:"PUT", headers:{"Content-Type":"application/json", "if-match":etag}, body:JSON.stringify(next) }).catch(() => null);
+    if (saved?.ok) { allPlayersCache[oName] = next; return true; }
+    if (saved?.status !== 412) return null;
+  }
+  return null;
+}
+
+async function hitTarget(x, y, bypassShield = false) {
   const i = y * N + x, o = grid[i], oName = names[o];
   if (!o || o === myId || isAlly(oName) || isProtected(oName)) return false;
-  const targetP = allPlayersCache[oName];
-  const curHr = Math.floor(srvNow() / HOUR);
-  const tUntil = targetP?.shieldUntil || 0, tEmp = targetP?.empUntil || 0, tStacks = targetP?.shieldStacks || 0;
-  const tUsed = (targetP?.shieldUsedHr === curHr ? targetP?.shieldUsedCnt : 0) || 0;
-  const maxDef = tStacks * 3;
-
-  if (!bypassShield && tUntil > srvNow() && tEmp < srvNow() && tUsed < maxDef) {
-    const nxtUsed = tUsed + 1;
-    targetP.shieldUsedHr = curHr; targetP.shieldUsedCnt = nxtUsed;
-    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oName)}/shieldUsedHr.json`, { method:"PUT", body:JSON.stringify(curHr) }).catch(()=>{});
-    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oName)}/shieldUsedCnt.json`, { method:"PUT", body:JSON.stringify(nxtUsed) }).catch(()=>{});
-    return "blocked";
+  if (!bypassShield) {
+    const now = srvNow();
+    const blocked = await consumeShield(oName, now);
+    if (blocked === true || blocked === null) return "blocked";
   }
   if (cellMods.has(i)) { cellMods.delete(i); fetch(modUrl(toKey(x, y)), { method:"DELETE" }).catch(()=>{}); }
   setXY(x, y, null);
@@ -1596,16 +1620,17 @@ window.useItem = async id => {
     fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}/shieldStacks.json`, { method:"PUT", body:JSON.stringify(shieldStacks) }).catch(()=>{});
     savePlayer(); updateInfo(); toast(`🛡️ ナノシールド強化！現在 ${shieldStacks}重ね (毎時${shieldStacks * 3}回防御・${duration / HOUR}時間)`);
   } else if (id === "emp") {
-    if (!selected || !ownerAt(selected.x, selected.y)) return toast("⚡ バリアを解除する敵マスを選択してください");
+    if (!selected || !ownerAt(selected.x, selected.y) || ownerAt(selected.x, selected.y) === myId || isAlly(names[ownerAt(selected.x, selected.y)]) || isProtected(names[ownerAt(selected.x, selected.y)])) return toast("⚡ バリアを解除する敵マスを選択してください");
     const targetName = names[ownerAt(selected.x, selected.y)];
     inv.emp--; savePlayer();
     const eUntil = srvNow() + itemDuration(5 * 60000);
     fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(targetName)}/empUntil.json`, { method:"PUT", body:JSON.stringify(eUntil) }).catch(()=>{});
     toast(`⚡ EMP照射！${targetName} のバリアを${itemDuration(5 * 60000) / 60000}分間完全シャットダウン！`);
   } else if (id === "bunker") {
-    if (!selected || !ownerAt(selected.x, selected.y)) return toast("🎯 貫通破壊する敵マスを選択してください");
+    if (!selected || !ownerAt(selected.x, selected.y) || ownerAt(selected.x, selected.y) === myId || isAlly(names[ownerAt(selected.x, selected.y)]) || isProtected(names[ownerAt(selected.x, selected.y)])) return toast("🎯 貫通破壊する敵マスを選択してください");
+    const res = await hitTarget(selected.x, selected.y, true);
+    if (res === false) return toast("破壊できませんでした");
     inv.bunker--; savePlayer();
-    const res = hitTarget(selected.x, selected.y, true);
     toast(res === "destroyed" ? "🎯 バンカーバスター貫通！敵マスを完全粉砕！" : "破壊できませんでした");
   } else if (id === "boost") {
     const duration = itemDuration(24 * HOUR);
@@ -1617,7 +1642,7 @@ window.useItem = async id => {
     if (!targets.length) { toast("攻撃可能な敵マスがありません"); return; }
     targets.sort(() => Math.random() - 0.5); inv.missile--; savePlayer();
     let des = 0, blk = 0;
-    for (const t of targets.slice(0, 20)) { const r = hitTarget(t % N, (t / N) | 0, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
+    for (const t of targets.slice(0, 20)) { const r = await hitTarget(t % N, (t / N) | 0, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
     toast(`🚀 戦略ミサイル着弾！破壊: ${des} / 敵シールド防護: ${blk}`);
   } else if (id === "bomb") {
     if (!selected) return toast("💣 爆撃中心マスを選択してください");
@@ -1625,14 +1650,14 @@ window.useItem = async id => {
     let des = 0, blk = 0;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
       const nx = selected.x + dx, ny = selected.y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-      const r = hitTarget(nx, ny, false); if (r === "destroyed") des++; else if (r === "blocked") blk++;
+      const r = await hitTarget(nx, ny, false); if (r === "destroyed") des++; else if (r === "blocked") blk++;
     }
     toast(`💣 メガボム炸裂！破壊: ${des} / 敵シールド防護: ${blk}`);
   } else if (id === "laser") {
     if (!selected) return toast("🛰️ レーザー行のマスを選択してください");
     inv.laser--; savePlayer(); const y = selected.y;
     let des = 0, blk = 0;
-    for (let x = 0; x < N; x++) { const r = hitTarget(x, y, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
+    for (let x = 0; x < N; x++) { const r = await hitTarget(x, y, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
     toast(`🛰️ 衛星レーザー照射！破壊: ${des} / 敵シールド防護: ${blk}`);
   }
   dirty = true; updateInfo();
@@ -1679,7 +1704,14 @@ $("btnPostTrade").onclick = async () => {
   tradeBusy = true;
   try {
     modifyStock(selId, itInfo.isRes, -qty); savePlayer(); updateInfo();
-    await fetch(`${marketUrl}.json`, { method:"POST", body:JSON.stringify({ seller:myName, allianceId:isAllyOnly?myAlliance.id:null, itemKey:selId, name:itInfo.name, icon:itInfo.icon, isRes:itInfo.isRes, qty, price, t:srvNow() }) });
+    try {
+      const res = await fetch(`${marketUrl}.json`, { method:"POST", body:JSON.stringify({ seller:myName, allianceId:isAllyOnly?myAlliance.id:null, itemKey:selId, name:itInfo.name, icon:itInfo.icon, isRes:itInfo.isRes, qty, price, t:srvNow() }) });
+      if (!res.ok) throw new Error(`market listing failed: ${res.status}`);
+    } catch (e) {
+      modifyStock(selId, itInfo.isRes, qty); savePlayer(); updateInfo();
+      toast("出品に失敗したため、商品を返却しました");
+      return;
+    }
     toast(`📦 ${itInfo.name} ×${qty} を出品しました！`); openMarket();
   } finally { tradeBusy = false; }
 };
@@ -1687,10 +1719,15 @@ window.buyTrade = async tradeId => {
   if (tradeBusy || myName === "Guest") return;
   tradeBusy = true;
   try {
-    const it = await fetch(`${marketUrl}/${tradeId}.json`).then(r => r.json()).catch(() => null);
+    const listing = await fetch(`${marketUrl}/${tradeId}.json`, { headers:{"X-Firebase-ETag":"true"} });
+    const etag = listing.headers.get("ETag");
+    const it = listing.ok ? await listing.json() : null;
     if (!it) return renderMarketList();
+    if (it.allianceId && (!myAlliance || myAlliance.id !== it.allianceId)) return toast("同盟限定商品です");
     if (coins < it.price) return toast("🪙 コイン不足");
-    await fetch(`${marketUrl}/${tradeId}.json`, { method:"DELETE" });
+    const removed = await fetch(`${marketUrl}/${tradeId}.json`, { method:"DELETE", headers:etag ? {"if-match":etag} : {} });
+    if (removed.status === 412) return toast("先に他のプレイヤーが購入しました");
+    if (!removed.ok) return toast("購入に失敗しました");
     coins -= it.price; modifyStock(it.itemKey, it.isRes, it.qty); savePlayer(); updateInfo();
     if (it.price > 0) fetch(`${DB}/gameData/${GAME_ID}/mailbox/${encodeURIComponent(it.seller)}.json`, { method:"POST", body:JSON.stringify({ price:it.price, buyer:myName, item:it.name, t:srvNow() }) }).catch(()=>{});
     toast(`🛒 ${it.name} ×${it.qty} を購入しました！`); renderMarketList();
@@ -1788,8 +1825,11 @@ window.inviteToAlliance = async () => {
 };
 window.acceptInvite = async (iId, aId) => {
   if (coins < ALLIANCE_COST) return toast("コイン不足");
+  const invite = await fetch(`${inviteUrl}/${iId}.json`).then(r => r.json()).catch(() => null);
+  if (!invite || invite.allianceId !== aId) return toast("無効な招待です");
   const a = await fetch(`${allianceUrl}/${aId}.json`).then(r => r.json()).catch(() => null);
   if (!a || (a.members || []).length >= 3) return toast("同盟は満員か解散されました");
+  if (invite.from && !(a.members || []).includes(invite.from)) return toast("無効な招待です");
   coins -= ALLIANCE_COST; a.members.push(myName);
   await fetch(`${allianceUrl}/${aId}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(a) });
   await fetch(`${inviteUrl}/${iId}.json`, { method:"DELETE" });
@@ -1831,7 +1871,7 @@ async function checkMailbox() {
     const it = list[k];
     await fetch(`${mailboxUrl}/${k}.json`, { method:"DELETE" });
     if (it.type === "tribute") { coins += it.c||0; wood += it.w||0; powder += it.p||0; metal += it.m||0; msgs.push(`👑 植民地(${it.from})上納: 🪙+${it.c}`); }
-    else if (it.price) { earned += it.price; }
+    else if (typeof it.price === "number" && it.price > 0) { coins += it.price; earned += it.price; }
   }
   if (earned > 0) toast(`🎉 商品が売れました！ +${earned}🪙`);
   if (msgs.length) toast(msgs.join("\n"));
@@ -1899,17 +1939,18 @@ async function renderRank() {
   }
 }
 
-// 管理者「のむのむ」専用（テスト用時間解放・イベント発生・リセット）
-if (myName === "のむのむ") {
+// 管理者「のむのむ」「みみみ」用（全データ完全リセットはのむのむ専用）
+if (myName === "のむのむ" || myName === "みみみ") {
   const b1 = document.createElement("button"); b1.className = "ib neon gold"; b1.textContent = "🛠️"; b1.title = "管理者メニュー";
   b1.onclick = async () => {
-    const cmd = prompt("【管理者メニュー】\n1: 時間停止バイパスON/OFF\n2: ☄️隕石落下イベント発生(3h)\n3: 🌫️濃霧イベント発生(2h)\n4: ⚠️全データ完全リセット\n5: 🎰ギャンブル発生(1h)\n6: 🎭仮面舞踏会発生(2h)");
+    const resetText = myName === "のむのむ" ? "\n4: ⚠️全データ完全リセット" : "\n4: (のむのむ専用)";
+    const cmd = prompt(`【管理者メニュー】\n1: 時間停止バイパスON/OFF\n2: ☄️隕石落下イベント発生(3h)\n3: 🌫️濃霧イベント発生(2h)${resetText}\n5: 🎰ギャンブル発生(1h)\n6: 🎭仮面舞踏会発生(2h)`);
     if (cmd === "5") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/gamble.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + HOUR }) }); toast("🎰 ギャンブル・アワー開始！"); return; }
     if (cmd === "6") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/mask.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + 2 * HOUR }) }); toast("🎭 仮面舞踏会開始！"); return; }
     if (cmd === "1") { adminBypassTime = !adminBypassTime; toast("時間停止バイパス: " + adminBypassTime); updateInfo(); }
     else if (cmd === "2") { const mx = 20 + Math.floor(Math.random()*160), my = 20 + Math.floor(Math.random()*160); await fetch(`${DB}/gameData/${GAME_ID}/world/events/meteor.json`, { method:"PUT", body:JSON.stringify({ x:mx, y:my, until:srvNow()+3*HOUR }) }); toast(`☄️ (${mx},${my})に隕石落下！`); }
     else if (cmd === "3") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/fog.json`, { method:"PUT", body:JSON.stringify({ until:srvNow()+2*HOUR }) }); toast("🌫️ 全域濃霧発生！"); }
-    else if (cmd === "4" && confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
+    else if (cmd === "4" && myName === "のむのむ" && confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
   };
   $("top").appendChild(b1);
 }
