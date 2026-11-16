@@ -864,7 +864,7 @@ async function checkVictoryCompletion() {
 }
 
 async function processHourlyAndDecay() {
-  if (myName === "Guest" || !playerLoaded || !loadedOnce || !timeReady) return;
+  if (myName === "Guest" || !playerLoaded || !loadedOnce || !timeReady || !firebaseSync.cells || !firebaseSync.player) return;
   checkVictoryCompletion();
   const now = srvNow();
   if (refreshMiniShield(now)) savePlayer();
@@ -2052,7 +2052,7 @@ async function checkVassalize(vic) {
   }
 }
 async function checkMailbox() {
-  if (myName === "Guest") return;
+  if (myName === "Guest" || !firebaseSync.player) return;
   const list = await fetch(`${mailboxUrl}.json`).then(r => r.json()).catch(() => null);
   if (!list) return;
   let earned = 0, msgs = [];
