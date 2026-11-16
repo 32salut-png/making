@@ -237,10 +237,10 @@
 
     <div style="color:var(--gold);font-weight:800">🎭 3. 5大イデオロギー (五つ巴の相性)</div>
     <ul style="padding-left:16px;margin:2px 0 7px">
-      <li><b>💰 資本</b>: 毎時コイン+50%。十字5マスを金脈化(CT12h・<b>※他人が奪うと通常マスに戻る</b>)。<b>[対軍閥]</b> Lv4〜5要塞をLv引き継ぎ奪取。</li>
+      <li><b>💰 資本</b>: 毎時コイン+30%。十字5マスを金脈化(CT12h・<b>※他人が奪うと通常マスに戻る</b>)。<b>[対軍閥]</b> Lv4〜5要塞をLv引き継ぎ奪取。</li>
       <li><b>🛡️ 軍閥</b>: 防衛上限Lv5。3×3砲撃(CT3h/敵Lv1即奪取/敵高Lv-2/味方Lv+2)。<b>[対ゲリラ]</b> 自陣周囲2マス以内の飛び石・仮拠点禁止 ＆ <b>ゲリラからの攻撃コスト2倍</b> ＆ <b>仮拠点1マス奪取で残りを連鎖崩壊</b>。 </li>
       <li><b>⚡ ゲリラ</b>: 1マス空け(飛び石)配置＆補給維持。2×2仮拠点設営(CT6h・全滅で消滅)。<b>[対電脳]</b> 奪取時コスト返還+相手資産10%強奪。</li>
-      <li><b>🔬 電脳</b>: 全員全財産透視。全マス1h分即収穫(CT3h)。<b>[対工兵]</b> 周囲3×3の改造マスを一斉解体し素材各+5強奪(CT6h)。</li>
+      <li><b>🔬 電脳</b>: 全員のデータ詳細を閲覧、アイテム効果時間+25%。1h分の報酬獲得＋同盟CT50%短縮(CT3h)。<b>[対工兵]</b> 半径5マスを2時間汚染し、改造結果をランダム化(CT6h)。</li>
       <li><b>🏗️ 工兵</b>: 強化＆製造の素材25%減。好きな最大5マスを防壁(敵奪取+8🪙)や資源マスへ改造(CT4h)。<b>[対資本]</b> Lv引き継ぎ無効＆資本からの攻撃コスト2倍。</li>
     </ul>
 
@@ -346,7 +346,7 @@ function activeHoursSince(lastTs, nowTs) {
 
 // ===== 5大イデオロギー定義 =====
 const IDEOLOGIES = {
-  capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+50%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
+  capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+30%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
   military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
   guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:6*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
   cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーのデータ詳細を閲覧、アイテム効果時間+25%", aName:"データ加速", aDesc:"1時間分の報酬を獲得し、同盟メンバー全員の残りCTを50%短縮", aCT:3*HOUR, cName:"設計図汚染", cDesc:"半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)", cCT:6*HOUR },
@@ -596,7 +596,7 @@ function myResInc() {
     }
   }
   c += HOURLY_COINS;
-  if (ideology === "capital") c = Math.floor(c * 1.5);
+  if (ideology === "capital") c = Math.floor(c * 1.3);
   const upkeep = getUpkeepRate();
   if (upkeep > 0) c = Math.max(1, Math.floor(c * (1 - upkeep)));
   if (capitalFallUntil > srvNow()) { c = Math.floor(c * .5); w = Math.floor(w * .5); p = Math.floor(p * .5); m = Math.floor(m * .5); }
