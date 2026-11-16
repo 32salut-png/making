@@ -18,8 +18,7 @@
   .card .v { font-size:14px; font-weight:800; white-space:nowrap; }
   .card.coin { border-color:rgba(255,225,77,.6); }
   .card.coin .v { color:var(--gold); text-shadow:0 0 6px rgba(255,225,77,.6); }
-  .card.daily { border-color:rgba(57,255,20,.6); }
-  .card.daily .v { color:var(--lime); text-shadow:0 0 6px rgba(57,255,20,.5); }
+  .card.coin .daily-line { color:var(--lime); }
   .card.res .v { font-size:12px; display:flex; gap:5px; }
   .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
@@ -100,9 +99,8 @@
 <body>
 <div id="app">
   <div id="top">
-    <div class="card neon daily"><div class="l">Daily</div><div class="v">🎁 <span id="dailyTimer">--:--:--</span></div><div class="s" id="dailyStatus"></div></div>
     <div class="card neon"><div class="l">Player / 陣営</div><div id="name"><span class="swatch" id="sw"></span><span id="uName"></span></div></div>
-    <div class="card neon coin"><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div><div class="s" id="nextH"></div></div>
+    <div class="card neon coin"><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div><div class="s" id="nextH"></div><div class="s daily-line">🎁 <span id="dailyTimer">--:--:--</span> <span id="dailyStatus"></span></div></div>
     <div class="card neon res">
       <div class="l">Resources (毎時)</div>
       <div class="v">
@@ -598,7 +596,7 @@ async function processHourlyAndDecay() {
   const now = srvNow();
   if (!lastActiveTick) { lastActiveTick = now; savePlayer(); return; }
   const hrs = activeHoursSince(lastActiveTick, now);
-  const dIdx = Math.floor((now - 3 * HOUR) / DAY);
+  const dIdx = Math.floor((now - 12 * HOUR) / DAY);
   let changed = false, msgs = [];
 
   if (dIdx > lastDay && isActiveTime(now)) { coins += DAILY_COINS; lastDay = dIdx; changed = true; msgs.push(`🎁 デイリー +${DAILY_COINS}🪙`); }
@@ -1165,7 +1163,7 @@ const fmt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.f
 const fmtM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
 function nextDailyReset(ts) {
   const next = new Date(ts);
-  next.setHours(3, 0, 0, 0);
+  next.setHours(12, 0, 0, 0);
   if (next.getTime() <= ts) next.setDate(next.getDate() + 1);
   return next.getTime();
 }
@@ -1181,7 +1179,7 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const remH = HOUR - (activeMsBetween(lastActiveTick || srvNow(), srvNow()) % HOUR);
   $("nextH").textContent = `⏱ ${fmtM(remH)} (+${inc.c}🪙)`;
-  const now = srvNow(), dailyIdx = Math.floor((now - 3 * HOUR) / DAY);
+  const now = srvNow(), dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
   const totInv = Object.values(inv).reduce((a, b) => a + b, 0);
