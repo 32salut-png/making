@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NEON TERRITORY - 5-WAY IDEOLOGY EDITION</title>
+<style>
+  :root { --bg:#05030f; --panel:#0b0820; --cyan:#00f0ff; --mag:#ff2bd6; --lime:#39ff14; --gold:#ffe14d; --text:#e8f6ff; --sub:#7f8fb8; --danger:#ff2d55; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; color:var(--text); touch-action:manipulation; overscroll-behavior:none;
+    background:radial-gradient(ellipse at 50% 0%,#1a0a3a 0%,#05030f 65%);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif; }
+  #app { display:grid; height:100%; height:100dvh; grid-template-columns:1fr; grid-template-rows:auto 1fr auto; grid-template-areas:"top" "stage" "bottom"; }
+  .neon { background:var(--panel); border:1px solid rgba(0,240,255,.5); box-shadow:0 0 10px rgba(0,240,255,.22), inset 0 0 12px rgba(0,240,255,.06); }
+  #top { grid-area:top; display:flex; align-items:center; gap:5px; padding:5px 8px; border-bottom:1px solid rgba(255,43,214,.55); background:rgba(11,8,32,.94); flex-wrap:wrap; z-index:4; }
+  .card { border-radius:9px; padding:3px 7px; line-height:1.15; min-width:0; }
+  .card .l { font-size:9px; letter-spacing:.08em; color:var(--sub); text-transform:uppercase; }
+  .card .v { font-size:14px; font-weight:800; white-space:nowrap; }
+  .card.coin { border-color:rgba(255,225,77,.6); }
+  .card.coin .v { color:var(--gold); text-shadow:0 0 6px rgba(255,225,77,.6); }
+  .card.res .v { font-size:12px; display:flex; gap:5px; }
+  .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
+  #name { font-size:12px; font-weight:800; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sp { flex:1; }
+  .ib { width:34px; height:34px; border-radius:9px; color:var(--cyan); font-size:15px; cursor:pointer; flex:none; position:relative; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  .ib:active { transform:scale(.93); }
+  .ib.gold { color:var(--gold); border-color:rgba(255,225,77,.65); }
+  .ib.mag { color:var(--mag); border-color:rgba(255,43,214,.65); }
+  .badge { position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; border-radius:8px; padding:0 4px; background:var(--mag); color:#fff; font-size:10px; font-weight:800; display:none; align-items:center; justify-content:center; }
+
+  #stage { grid-area:stage; position:relative; flex:1; min-height:0; touch-action:none; user-select:none; -webkit-user-select:none; }
+  canvas#cv { position:absolute; inset:0; width:100%; height:100%; touch-action:none; display:block; }
+
+  #legendBtn { position:absolute; left:10px; top:10px; z-index:2; border-radius:999px; color:var(--cyan); padding:4px 11px; font-size:11px; font-weight:800; cursor:pointer; }
+  #legend { position:absolute; left:10px; top:44px; border-radius:10px; padding:8px 11px; font-size:11px; display:none; flex-direction:column; gap:4px; background:rgba(11,8,32,.95); max-height:70vh; overflow-y:auto; z-index:3; }
+  #legend.show { display:flex; }
+  #legend i { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:6px; vertical-align:-2px; text-align:center; line-height:13px; font-size:10px; font-style:normal; }
+
+  #alertBar { position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:3; display:flex; flex-direction:column; gap:4px; align-items:center; pointer-events:none; max-width:92%; }
+  .pill { padding:5px 12px; border-radius:999px; font-size:11.5px; font-weight:800; background:rgba(11,8,32,.92); border:1px solid var(--cyan); color:#fff; box-shadow:0 0 12px rgba(0,240,255,.35); white-space:nowrap; pointer-events:auto; }
+  .pill.warn { border-color:var(--danger); color:#ffd0d8; box-shadow:0 0 12px rgba(255,45,85,.5); }
+  .pill.gold { border-color:var(--gold); color:var(--gold); }
+  .pill.mode { border-color:var(--lime); color:var(--lime); background:rgba(10,30,15,.95); cursor:pointer; }
+
+  #status { position:absolute; right:10px; bottom:10px; background:rgba(11,8,32,.88); border-radius:999px; padding:4px 10px; font-size:11px; color:var(--sub); border:1px solid rgba(0,240,255,.35); z-index:2; }
+  #rank { position:absolute; right:10px; top:10px; width:275px; max-height:80%; overflow:auto; border-radius:12px; padding:10px; font-size:12.5px; display:none; background:rgba(11,8,32,.96); z-index:5; }
+  #rank.show { display:block; }
+  .tabs { display:flex; gap:5px; margin-bottom:8px; align-items:center; }
+  .tabs button { flex:1; padding:5px; font-size:11.5px; border:1px solid rgba(0,240,255,.4); border-radius:7px; background:transparent; color:var(--sub); cursor:pointer; font-weight:700; }
+  .tabs button.on { color:#05030f; background:var(--cyan); }
+  .tabs #rankClose { flex:none; width:28px; height:28px; padding:0; border-color:var(--mag); color:var(--mag); }
+  #rank ol { margin:0; padding:0; list-style:none; }
+  #rank li { display:flex; align-items:center; gap:6px; padding:5px 4px; border-radius:5px; }
+  #rank li:nth-child(odd) { background:rgba(0,240,255,.05); }
+  #rank li.me { outline:1px solid var(--mag); font-weight:800; }
+  #rank li .n { width:18px; text-align:right; color:var(--sub); }
+  #rank li .dot { width:10px; height:10px; border-radius:3px; flex:none; }
+  #rank li .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  #bottom { grid-area:bottom; padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px)); display:flex; gap:8px; align-items:center; border-top:1px solid rgba(0,240,255,.55); background:rgba(11,8,32,.95); z-index:4; }
+  #info { flex:1; min-width:0; font-size:12.5px; line-height:1.3; }
+  #info .t { font-weight:800; font-size:13.5px; }
+  #info small { color:var(--sub); font-size:11px; }
+  #claim { border:2px solid var(--lime); background:rgba(57,255,20,.1); color:var(--lime); border-radius:11px; padding:10px 22px; min-width:110px; font-size:15px; font-weight:900; cursor:pointer; }
+  #claim:disabled { border-color:#2b3350; color:#3b4566; background:transparent; cursor:not-allowed; }
+  #engConfirm { display:none; border:2px solid var(--gold); background:rgba(255,225,77,.15); color:var(--gold); border-radius:11px; padding:10px 14px; font-size:13px; font-weight:900; cursor:pointer; }
+
+  #toast { position:absolute; left:50%; top:50px; transform:translate(-50%,-15px); background:var(--panel); color:#fff; padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; opacity:0; transition:.22s; pointer-events:none; max-width:90%; text-align:center; z-index:20; border:1px solid var(--mag); box-shadow:0 0 14px rgba(255,43,214,.65); white-space:pre-line; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+
+  .modal { position:fixed; inset:0; background:rgba(3,1,10,.86); display:none; align-items:center; justify-content:center; z-index:10; padding:14px; }
+  .modal.show { display:flex; }
+  .modal .box { border-radius:15px; padding:16px; width:100%; max-width:520px; font-size:12.5px; line-height:1.45; border:1px solid rgba(0,240,255,.5); max-height:90vh; overflow-y:auto; background:var(--panel); }
+  .modal h3 { margin:0 0 10px; color:var(--cyan); display:flex; align-items:center; justify-content:space-between; font-size:16px; }
+  .crow { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; margin-bottom:7px; border-radius:10px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.08); }
+  .crow.selected { border-color:var(--gold); background:rgba(255,225,77,.08); }
+  .ci { flex:1; min-width:0; }
+  .ci .ct { font-weight:800; font-size:13px; }
+  .ci .req { font-size:11px; color:var(--sub); margin-top:2px; }
+  .ci .cd { font-size:11px; color:#aac0e6; margin-top:2px; }
+  .cbtn { border-radius:8px; padding:6px 11px; font-weight:800; font-size:11.5px; cursor:pointer; background:transparent; white-space:nowrap; border:1.5px solid var(--cyan); color:var(--cyan); }
+  .cbtn.gold { border-color:var(--gold); color:var(--gold); }
+  .cbtn.mag { border-color:var(--mag); color:var(--mag); }
+  .cbtn.lime { border-color:var(--lime); color:var(--lime); }
+  .cbtn:disabled { border-color:#2b3350; color:#3b4566; cursor:not-allowed; }
+  .mclose { margin-top:10px; width:100%; border:1px solid rgba(0,240,255,.5); background:transparent; color:var(--cyan); border-radius:10px; padding:9px; font-weight:800; cursor:pointer; }
+  .tag { display:inline-block; font-size:10px; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:4px; }
+  .tag.ok { background:rgba(57,255,20,.18); color:#39ff14; border:1px solid #39ff14; }
+  .tag.no { background:rgba(255,45,85,.18); color:#ff4d6d; border:1px solid #ff4d6d; }
+  .tag.ally { background:rgba(0,240,255,.18); color:#00f0ff; border:1px solid #00f0ff; }
+  .custom-form { background:rgba(255,255,255,.04); border:1px solid rgba(0,240,255,.25); border-radius:11px; padding:10px; margin-bottom:10px; }
+  .custom-form select, .custom-form input { background:#0b0820; border:1px solid rgba(0,240,255,.4); color:#fff; border-radius:6px; padding:5px 8px; font-size:12.5px; }
+  .custom-form .f-row { display:flex; gap:6px; align-items:center; margin-bottom:7px; flex-wrap:wrap; }
+  .custom-form button { background:var(--gold); color:#05030f; border:0; border-radius:7px; padding:7px 13px; font-weight:900; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="card neon"><div class="l">Player / 陣営</div><div id="name"><span class="swatch" id="sw"></span><span id="uName"></span></div></div>
+    <div class="card neon coin"><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div><div class="s" id="nextH"></div></div>
+    <div class="card neon res">
+      <div class="l">Resources (毎時)</div>
+      <div class="v">
+        <span>🪵<b id="rWood">0</b><small id="incWood">(+0)</small></span>
+        <span>💥<b id="rPowder">0</b><small id="incPowder">(+0)</small></span>
+        <span>⚙️<b id="rMetal">0</b><small id="incMetal">(+0)</small></span>
+      </div>
+      <div class="s" id="worldClock"></div>
+    </div>
+    <div class="card neon"><div class="l">Territory</div><div class="v"><span id="myCells">0</span>マス <span id="myRank" style="font-size:11px;color:var(--mag)"></span></div></div>
+    <span class="sp"></span>
+    <button class="ib neon mag" id="btnIdeo" title="陣営・固有スキル">🎭</button>
+    <button class="ib neon gold" id="btnVictory" title="特殊勝利ルート">👑</button>
+    <button class="ib neon" id="btnAlliance" title="同盟管理">🤝<span class="badge" id="allyBadge">0</span></button>
+    <button class="ib neon" id="btnMarket" title="貿易所">⚖️</button>
+    <button class="ib neon" id="btnCraft" title="兵器工廠">🔨<span class="badge" id="mBadge">0</span></button>
+    <button class="ib neon" id="btnHome" title="本拠地へ">🎯</button>
+    <button class="ib neon" id="btnRank" title="ランキング/ハック">🏆</button>
+    <button class="ib neon" id="btnHelp" title="ルール説明">❓</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <button id="legendBtn" class="neon">凡例</button>
+    <div id="legend" class="neon">
+      <div><i style="background:rgba(57,255,20,.35);border:1px solid #39ff14"></i>獲得可能 空きマス</div>
+      <div><i style="background:rgba(255,45,85,.4);border:1px solid #ff2d55"></i>奪取可能 敵マス</div>
+      <div><i style="background:#555;border:1px dashed #ff4d6d"></i>斜線/暗色 = 補給線隔離(崩壊中)</div>
+      <div><i style="background:#444;border:1px solid #aaa">🧱</i>防壁 (通行不可)</div>
+      <div><i style="background:#ffe14d;border-radius:50%">💰</i>コインマス / 💎隕石(3h限定)</div>
+      <div><i style="background:#2ecc71;border-radius:50%">🌲</i>木 / 🌋火薬 / ⛰️鉄</div>
+      <div><i style="background:#ff3366">🏭</i>3×3巨大工場 (兵器/先端/工兵)</div>
+      <div><i style="background:#c24dff;border-radius:50%">🌀</i>ワープ / 🛡️要塞 / 🏰本拠地 / ⛺仮拠点</div>
+    </div>
+    <div id="alertBar"></div>
+    <div id="status">接続中…</div>
+    <div id="toast"></div>
+
+    <div id="rank" class="neon">
+      <div class="tabs">
+        <button id="tabLive" class="on">現在領土</button>
+        <button id="tabBest">最高記録</button>
+        <button id="tabCyber" style="display:none">🔬透視</button>
+        <button id="rankClose">✕</button>
+      </div>
+      <ol id="rankList"></ol>
+    </div>
+  </div>
+
+  <div id="bottom" class="neon">
+    <div id="info"></div>
+    <button id="engConfirm">決定(0/5)</button>
+    <button id="claim" disabled>獲得</button>
+  </div>
+</div>
+
+<!-- 陣営・固有スキルモーダル -->
+<div id="ideoModal" class="modal"><div class="box neon">
+  <h3><span>🎭 イデオロギー & 固有スキル</span> <span id="ideoTag" style="font-size:12px"></span></h3>
+  <div id="ideoView"></div>
+  <button class="mclose" id="ideoClose">閉じる</button>
+</div></div>
+
+<!-- 特殊勝利ルートモーダル -->
+<div id="victoryModal" class="modal"><div class="box neon">
+  <h3><span>👑 3大特殊勝利ルート</span></h3>
+  <div id="victoryView"></div>
+  <button class="mclose" id="victoryClose">閉じる</button>
+</div></div>
+
+<!-- 同盟モーダル -->
+<div id="allianceModal" class="modal"><div class="box neon">
+  <h3><span>🤝 同盟管理 (最大3人)</span> <span id="allyStatusTag" style="font-size:12px"></span></h3>
+  <div id="allianceView"></div>
+  <button class="mclose" id="allianceClose">閉じる</button>
+</div></div>
+
+<!-- クラフトモーダル -->
+<div id="craftModal" class="modal"><div class="box neon">
+  <h3><span>🔨 兵器工廠</span> <span id="craftCoins" style="font-size:11.5px;color:var(--gold)"></span></h3>
+  <div id="craftFacStatus" style="font-size:11px;color:var(--sub);margin-bottom:8px"></div>
+  <div id="craftList"></div>
+  <button class="mclose" id="craftClose">閉じる</button>
+</div></div>
+
+<!-- 貿易マーケットモーダル -->
+<div id="marketModal" class="modal"><div class="box neon">
+  <h3><span>⚖️ 貿易マーケット</span></h3>
+  <div class="tabs">
+    <button id="mTabBuy" class="on">公開輸入</button>
+    <button id="mTabAllyBuy">🤝同盟限定</button>
+    <button id="mTabSell">輸出(出品)</button>
+  </div>
+  <div id="sellView" style="display:none">
+    <div class="custom-form">
+      <div class="f-row"><label>品目:</label><select id="tradeItemSelect"></select></div>
+      <div class="f-row"><label>数量:</label><input type="number" id="tradeQty" min="1" max="99" value="1" style="width:65px"><label>価格:</label><input type="number" id="tradePrice" min="0" max="9999" value="10" style="width:75px">🪙</div>
+      <div class="f-row"><label style="color:var(--cyan)"><input type="checkbox" id="tradeIsAllyOnly"> 🤝同盟メンバー限定(価格0可)</label></div>
+      <button id="btnPostTrade">出品登録</button>
+    </div>
+    <div id="myTradeList"></div>
+  </div>
+  <div id="buyView"><div id="marketList"></div></div>
+  <button class="mclose" id="marketClose">閉じる</button>
+</div></div>
+
+<!-- 闇商人モーダル -->
+<div id="merchantModal" class="modal"><div class="box neon">
+  <h3><span>🕵️‍♂️ 放浪の闇商人 (最下位救済)</span></h3>
+  <div id="merchantView"></div>
+  <button class="mclose" id="merchantClose">閉じる</button>
+</div></div>
+
+<!-- ヘルプモーダル（完全ルール辞書） -->
+<div id="helpModal" class="modal"><div class="box neon">
+  <h3>📖 NEON TERRITORY 完全ルール辞書</h3>
+  <div style="font-size:11.5px;line-height:1.55">
+    <div style="color:var(--cyan);font-weight:800;margin-top:4px">⏰ 1. 基本ルール・保護・本拠地</div>
+    <ul style="padding-left:16px;margin:2px 0 7px">
+      <li><b>稼働時間(平日9:00〜17:00)</b>: 17:00〜翌9:00と土日は<b>完全時間停止</b>(生産・CT・勝利タイマー停止)。</li>
+      <li><b>初狩り防止</b>: 開始から2時間(100マス未満＆未攻撃)は無敵保護。100マス到達か他者攻撃で解除。</li>
+      <li><b>🏰 本拠地(コア)</b>: 奪取コスト+5🪙の防衛補正。奪われると<b>全コイン＆資源の25%を強奪</b>され、1時間収入半減！</li>
+      <li><b>🔗 補給線と隔離</b>: 本拠地/仮拠点と繋がっていない孤立マスは収入0＆毎時40%でLvダウン(Lv0は中立化)。</li>
+      <li><b>🏛️ 帝国維持費</b>: 100マス超から10マスごとに毎時コイン収入-1%(最大50%減)。</li>
+      <li><b>⚔️ 1位包囲網</b>: 1位が「2位の2倍以上かつ150マス以上」になると、全員から1位への攻撃コストが<b>半額</b>。</li>
+    </ul>
+
+    <div style="color:var(--mag);font-weight:800">🤝 2. 同盟・植民地・独立戦争</div>
+    <ul style="padding-left:16px;margin:2px 0 7px">
+      <li><b>同盟(最大3人)</b>: 結成/加入🪙30。同盟維持費として毎時収入から<b>10%天引き</b>。</li>
+      <li><b>⛓️ 植民地化</b>: 敵を残り1マスにすると自動服従(毎時50%上納・宗主国への攻撃不可)。宗主国が全滅すると解放。</li>
+      <li><b>🔥 独立戦争</b>: 植民地は同盟画面から宣言可能(CT6h/1時間有効)。期間中は宗主国へコスト半額で反撃でき、<b>5マス奪還</b>または<b>30マス回復</b>で独立！</li>
+    </ul>
+
+    <div style="color:var(--gold);font-weight:800">🎭 3. 5大イデオロギー (五つ巴の相性)</div>
+    <ul style="padding-left:16px;margin:2px 0 7px">
+      <li><b>💰 資本</b>: 毎時コイン+50%。十字5マスを金脈化(CT12h・<b>※他人が奪うと通常マスに戻る</b>)。<b>[対軍閥]</b> Lv4〜5要塞をLv引き継ぎ奪取。</li>
+      <li><b>🛡️ 軍閥</b>: 防衛上限Lv5。3×3砲撃(CT3h/敵Lv1即奪取/敵高Lv-2/味方Lv+2)。<b>[対ゲリラ]</b> 自陣周囲2マス以内の飛び石・仮拠点禁止 ＆ <b>ゲリラからの攻撃コスト2倍</b> ＆ <b>仮拠点1マス奪取で残りを連鎖崩壊</b>。 </li>
+      <li><b>⚡ ゲリラ</b>: 1マス空け(飛び石)配置＆補給維持。2×2仮拠点設営(CT6h・全滅で消滅)。<b>[対電脳]</b> 奪取時コスト返還+相手資産10%強奪。</li>
+      <li><b>🔬 電脳</b>: 全員全財産透視。全マス1h分即収穫(CT3h)。<b>[対工兵]</b> 周囲3×3の改造マスを一斉解体し素材各+5強奪(CT6h)。</li>
+      <li><b>🏗️ 工兵</b>: 強化＆製造の素材25%減。好きな最大5マスを防壁(敵奪取+8🪙)や資源マスへ改造(CT4h)。<b>[対資本]</b> Lv引き継ぎ無効＆資本からの攻撃コスト2倍。</li>
+    </ul>
+
+    <div style="color:var(--cyan);font-weight:800">🔨 4. 兵器・バリア & 🎲 ランダムイベント</div>
+    <ul style="padding-left:16px;margin:2px 0 7px">
+      <li><b>🛡️ ナノシールド</b>: 12時間有効。1重ねにつき<b>毎時3回</b>防御枠(重ね買い上限なし)。</li>
+      <li><b>⚡ EMP / 🎯 バンカーバスター</b>: EMPはバリアを5分無効化(4重ね以上に対策有効)。🎯はバリア・要塞貫通で1マス破壊。</li>
+      <li><b>☄️ 隕石</b>: 大量の物資を取得できる超鉱脈。</li>
+      <li><b>🌫️ 濃霧</b>: 自同盟4マス外が不可視。</li>
+      <li><b>🎯 賞金首</b>: 1位のマスを奪うとコスト全額返還&+5🪙。</li>
+      <li><b>🕵️‍♂️ 闇商人</b>: 正時0〜9分にランダムで最下位の元へ闇商人出現。</li>
+    </ul>
+
+    <div style="color:var(--lime);font-weight:800">👑 5. 3大特殊勝利ルート (達成で即優勝)</div>
+    <ul style="padding-left:16px;margin:2px 0 4px">
+      <li><b>覇権勝利</b>: 工場6箇所＋1,000マスを稼働16時間維持(他者攻撃コスト半額)。</li>
+      <li><b>次元ゲート</b>: 3段階(計木3000/灰3500/鉄4500/🪙18000)投入後、中心3×3を稼働12時間防衛(破壊で阻止)。</li>
+      <li><b>経済掌握</b>: 50,000🪙供託＋金脈40%以上を稼働16時間維持(奪われると金庫から100🪙強奪)。</li>
+    </ul>
+  </div>
+  <button class="mclose" id="helpClose">閉じる</button>
+</div></div>
+
+<script>
+const DB = "https://territory-fc6f5-default-rtdb.asia-southeast1.firebasedatabase.app";
+const GAME_ID = "territory";
+const N = 200;
+const EMPTY_COST = 1, ENEMY_COST = 3, FACTORY_EMPTY_COST = 10, FACTORY_ENEMY_COST = 8;
+const ALLIANCE_COST = 30, DAILY_COINS = 20, HOURLY_COINS = 2, COIN_CELL_HOURLY = 1, RES_HOURLY = 2;
+const MAX_LV_BASE = 3, MAX_LV_MIL = 5, UPGRADE_COSTS = [3, 6, 10, 16, 25], DEF_PER_LV = 2, FORT_DEF = 2;
+const HOUR = 3600000, DAY = 86400000;
+const $ = id => document.getElementById(id);
+const esc = s => String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const newES = url => { try { return new EventSource(url); } catch (_) { return { addEventListener(){}, close(){} }; } };
+const myName = window.CLASS_USER_NAME || "Guest";
+let refreshT = 0, fogMask = null, maskPrev = false;
+const isEvtOn = k => { const e = worldEvents[k]; return !!(e && e.until > srvNow()); };
+
+// ===== サーバー時刻 & 9:00-17:00 稼働時間エンジン =====
+let serverOffset = 0, timeReady = false, adminBypassTime = false;
+const srvNow = () => Date.now() + serverOffset;
+async function syncTime() {
+  const t0 = Date.now();
+  try {
+    const r = await fetch(`${DB}/gameData/${GAME_ID}/serverTime/${encodeURIComponent(myName)}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({".sv":"timestamp"}) });
+    const v = await r.json(), t1 = Date.now();
+    if (typeof v === "number") { serverOffset = Math.round(v - (t0 + t1) / 2); timeReady = true; }
+  } catch (_) {}
+}
+setInterval(() => syncTime().catch(() => {}), 300000);
+
+function isActiveTime(ts = srvNow()) {
+  if (adminBypassTime) return true;
+  const d = new Date(ts), day = d.getDay(), h = d.getHours();
+  return day >= 1 && day <= 5 && h >= 9 && h < 17;
+}
+function activeMsBetween(t1, t2) {
+  if (t2 <= t1) return 0;
+  if (adminBypassTime) return t2 - t1;
+  let total = 0;
+  const d = new Date(t1); d.setHours(0, 0, 0, 0);
+  while (d.getTime() < t2) {
+    const wd = d.getDay();
+    if (wd >= 1 && wd <= 5) {
+      const s = new Date(d).setHours(9, 0, 0, 0), e = new Date(d).setHours(17, 0, 0, 0);
+      const a = Math.max(s, t1), b = Math.min(e, t2);
+      if (b > a) total += b - a;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return total;
+}
+function activeHoursSince(lastTs, nowTs) {
+  return Math.floor(activeMsBetween(lastTs, nowTs) / HOUR);
+}
+
+// ===== 5大イデオロギー定義 =====
+const IDEOLOGIES = {
+  capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+50%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
+  military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
+  guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:6*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
+  cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーの財産常時透視", aName:"データ加速", aDesc:"自領土の全コイン・資源マス1h分を即獲得", aCT:3*HOUR, cDesc:"対工兵: 改造マス・防壁を解体し素材強奪(CT6h)" },
+  engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cDesc:"対資本: 買収無効＆資本からの攻撃コスト2倍" }
+};
+
+// ===== マップデータ & URL =====
+const cellUrl = k => `${DB}/gameData/${GAME_ID}/cells/${k}.json`;
+const modUrl = k => `${DB}/gameData/${GAME_ID}/cellMods/${k}.json`;
+const pIdsUrl = `${DB}/gameData/${GAME_ID}/pIds.json`;
+const playerUrl = `${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}.json`;
+const shieldUrl = `${DB}/gameData/${GAME_ID}/shields/${encodeURIComponent(myName)}.json`;
+const marketUrl = `${DB}/gameData/${GAME_ID}/market`;
+const mailboxUrl = `${DB}/gameData/${GAME_ID}/mailbox/${encodeURIComponent(myName)}`;
+const allianceUrl = `${DB}/gameData/${GAME_ID}/alliances`;
+const vassalUrl = `${DB}/gameData/${GAME_ID}/vassals`;
+const inviteUrl = `${DB}/gameData/${GAME_ID}/allianceInvites/${encodeURIComponent(myName)}`;
+const eventsUrl = `${DB}/gameData/${GAME_ID}/world/events.json`;
+const wondersUrl = `${DB}/gameData/${GAME_ID}/world/wonders.json`;
+
+const toKey = (x, y) => (y * N + x).toString(36);
+const parseKey = k => { const i = parseInt(k, 36); return (i >= 0 && i < N * N) ? [i % N, (i / N) | 0] : null; };
+
+let pIdNames = [], pIdByName = new Map();
+function setPidList(arr) { pIdNames = Array.isArray(arr) ? arr : []; pIdByName = new Map(); for (let i = 0; i < pIdNames.length; i++) if (pIdNames[i]) pIdByName.set(pIdNames[i], i); }
+async function loadPids() { try { const d = await fetch(pIdsUrl).then(r => r.json()); if (d) setPidList(d); } catch (_) {} }
+async function ensurePidsFor(list) {
+  const miss = list.filter(n => n && !pIdByName.has(n)); if (!miss.length) return;
+  for (let t = 0; t < 6; t++) {
+    let etag = null, cur = null;
+    try { const r = await fetch(pIdsUrl, { headers:{"X-Firebase-ETag":"true"} }); etag = r.headers.get("ETag"); cur = await r.json(); } catch (_) {}
+    const arr = Array.isArray(cur) ? cur.slice() : []; let add = false;
+    for (const n of miss) if (!arr.includes(n)) { arr.push(n); add = true; }
+    if (!add) { setPidList(arr); return; }
+    const res = await fetch(pIdsUrl, { method:"PUT", headers:Object.assign({"Content-Type":"application/json"}, etag?{"if-match":etag}:{}), body:JSON.stringify(arr) });
+    if (res.status === 412) { await sleep(80); continue; }
+    if (res.ok) { setPidList(arr); return; }
+  }
+}
+
+const TYPE_WOOD = 1, TYPE_WARP = 2, TYPE_FORT = 3, TYPE_POWDER = 4, TYPE_METAL = 5, FAC_WEAPON = 6, FAC_TECH = 7, FAC_ENG = 8;
+const MOD_WALL = 1, MOD_CAP_COIN = 2, MOD_WOOD = 3, MOD_POWDER = 4, MOD_METAL = 5;
+
+const grid = new Uint16Array(N * N), lvl = new Uint8Array(N * N);
+const coinMap = new Uint8Array(N * N), spec = new Uint8Array(N * N), warpAdj = new Uint8Array(N * N);
+const cellMods = new Map(); // keyIdx -> { type, owner }
+const isolatedSet = new Set(); // 自分の隔離マス
+const names = [null], counts = [0], idMap = new Map();
+function idOf(n) { let i = idMap.get(n); if (!i) { i = names.length; names.push(n); counts.push(0); idMap.set(n, i); } return i; }
+const myId = idOf(myName), myCount = () => counts[myId];
+const megaFactories = [], warpList = []; let hasWarp = false;
+
+(function initMap() {
+  const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; };
+  for (let by = 0; by * 10 < N; by++) for (let bx = 0; bx * 10 < N; bx++) {
+    const h = hash(bx, by); if (((h >>> 6) % 20) >= 13) continue;
+    const x = bx * 10 + (h % 10), y = by * 10 + ((h >>> 3) % 10);
+    if (x < N && y < N) coinMap[y * N + x] = 1;
+  }
+  const fTypes = [FAC_WEAPON, FAC_TECH, FAC_ENG];
+  for (let fId = 0; fId < 9; fId++) {
+    const ft = fTypes[fId % 3];
+    let fx = 0, fy = 0, tries = 0;
+    while (tries < 120) {
+      const h = hash(fId * 777 + tries * 31, fId * 991 + 17);
+      fx = 8 + (h % (N - 19)); fy = 8 + ((h >>> 7) % (N - 19));
+      const tooCloseAny = megaFactories.some(f => Math.abs(f.x - fx) < 24 && Math.abs(f.y - fy) < 24);
+      const tooCloseSame = megaFactories.some(f => f.type === ft && Math.hypot(f.x - fx, f.y - fy) < 65);
+      if (!tooCloseAny && !tooCloseSame) break;
+      tries++;
+    }
+    megaFactories.push({ type: ft, x: fx, y: fy });
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) { const idx = (fy + dy) * N + (fx + dx); spec[idx] = ft; coinMap[idx] = 0; }
+  }
+  const seq = [TYPE_WOOD, TYPE_POWDER, TYPE_METAL, TYPE_FORT]; let t = 0;
+  for (let my = 0; my < 20; my++) for (let mx = 0; mx < 20; mx++) {
+    const h = hash(mx + 101, my + 57), px = mx * 10 + (h % 10), py = my * 10 + ((h >>> 4) % 10);
+    if (!coinMap[py * N + px] && !spec[py * N + px]) spec[py * N + px] = seq[t++ % 4];
+  }
+  for (let w = 0; w < 6; w++) {
+    const h = hash(w * 1337 + 42, w * 997 + 88);
+    let wx = 12 + (h % (N - 24)), wy = 12 + ((h >>> 6) % (N - 24));
+    while (coinMap[wy * N + wx] || spec[wy * N + wx]) { wx = 12 + ((wx + 7) % (N - 24)); wy = 12 + ((wy + 11) % (N - 24)); }
+    const idx = wy * N + wx; spec[idx] = TYPE_WARP; coinMap[idx] = 0; warpList.push(idx);
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = wx + dx, ny = wy + dy; if (nx >= 0 && ny >= 0 && nx < N && ny < N) warpAdj[ny * N + nx] = 1; }
+  }
+})();
+const isFactoryType = t => t === FAC_WEAPON || t === FAC_TECH || t === FAC_ENG;
+const myFac = type => { for (let i = 0; i < grid.length; i++) if (grid[i] === myId && spec[i] === type && !isolatedSet.has(i)) return true; return false; };
+function recalcWarp() { hasWarp = warpList.some(i => grid[i] === myId && !isolatedSet.has(i)); }
+
+// ===== プレイヤー・ワールド状態 =====
+let coins = 0, wood = 0, powder = 0, metal = 0, started = false, loadedOnce = false, playerLoaded = false;
+let ideology = null, ideoChangedAt = 0, core = null, camps = [], protectUntil = 0, protectBroken = false;
+let lastActiveTick = 0, lastDay = 0, skillCD = { main: 0, counter: 0 };
+let shieldUntil = 0, shieldStacks = 0, shieldUsedHr = -1, shieldUsedCnt = 0, empUntil = 0, boostUntil = 0, beaconArmed = false;
+let capitalFallUntil = 0, rebelUntil = 0, rebelCD = 0, rebelHits = 0;
+const inv = { missile:0, bomb:0, shield:0, ticket:0, boost:0, bunker:0, emp:0, laser:0 };
+let allPlayersCache = {}, worldEvents = {}, worldWonders = {};
+let myAlliance = null, myOverlord = null, myVassals = [];
+
+const colCache = new Map();
+function cols(name) {
+  const s = String(name || "?"); let c = colCache.get(s);
+  if (!c) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; const hue = (h * 137.508) % 360; c = { fill:`hsl(${hue} 100% 55%)`, fillA:`hsla(${hue},100%,55%,.75)`, edge:`hsl(${hue} 100% 72%)` }; colCache.set(s, c); }
+  return c;
+}
+function isAlly(n) { return !!(n && myAlliance && myAlliance.members && myAlliance.members.includes(n)); }
+function getPlayerIdeo(n) { return allPlayersCache[n]?.ideology || null; }
+function isProtected(n) {
+  const p = allPlayersCache[n]; if (!p || p.protectBroken) return false;
+  const id = idMap.get(n); if (id && counts[id] >= 100) return false;
+  return (p.protectUntil || 0) > srvNow();
+}
+function getBountyTarget() {
+  let maxC = 0, best = null;
+  for (let i = 1; i < counts.length; i++) if (counts[i] > maxC) { maxC = counts[i]; best = names[i]; }
+  return maxC >= 20 ? best : null;
+}
+function getLowestPlayer() {
+  let minC = 1e9, low = null;
+  for (let i = 1; i < counts.length; i++) if (counts[i] > 0 && counts[i] < minC) { minC = counts[i]; low = names[i]; }
+  return low;
+}
+function getSiegeTarget() {
+  const arr = [];
+  for (let i = 1; i < counts.length; i++) if (counts[i] > 0) arr.push({ n: names[i], c: counts[i] });
+  if (arr.length < 2) return null;
+  arr.sort((a, b) => b.c - a.c);
+  return (arr[0].c >= 150 && arr[0].c >= arr[1].c * 2) ? arr[0].n : null;
+}
+
+// ===== 補給線 (BFS) =====
+function recalcSupply() {
+  isolatedSet.clear();
+  if (!loadedOnce || myCount() === 0) return;
+  const q = [], visited = new Uint8Array(N * N);
+  const push = (x, y) => {
+    if (x < 0 || y < 0 || x >= N || y >= N) return;
+    const i = y * N + x;
+    if (grid[i] === myId && !visited[i]) { visited[i] = 1; q.push(i); }
+  };
+  if (core && ownerAt(core.x, core.y) !== myId) core = null;
+  if (!core) { for (let i = 0; i < grid.length; i++) if (grid[i] === myId) { core = { x: i % N, y: (i / N) | 0 }; break; } }
+  if (core) push(core.x, core.y);
+  const prevLen = camps.length;
+  camps = camps.filter(cp => ownerAt(cp.x,cp.y)===myId || ownerAt(cp.x+1,cp.y)===myId || ownerAt(cp.x,cp.y+1)===myId || ownerAt(cp.x+1,cp.y+1)===myId);
+  if (camps.length !== prevLen && playerLoaded) savePlayer();
+  for (const cp of camps) { push(cp.x, cp.y); push(cp.x+1, cp.y); push(cp.x, cp.y+1); push(cp.x+1, cp.y+1); }
+  for (let i = 0; i < grid.length; i++) if (warpAdj[i] && grid[i] === myId) push(i % N, (i / N) | 0);
+  const dirs = ideology === "guerrilla"
+    ? [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],[1,1],[1,-1],[-1,1],[-1,-1]]
+    : [[1,0],[-1,0],[0,1],[0,-1]];
+  let head = 0;
+  while (head < q.length) {
+    const idx = q[head++], cx = idx % N, cy = (idx / N) | 0;
+    if (spec[idx] === TYPE_WARP) for (const wi of warpList) {
+      const wx = wi % N, wy = (wi / N) | 0;
+      push(wx, wy);
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) push(wx + dx, wy + dy);
+    }
+    for (const [dx, dy] of dirs) push(cx + dx, cy + dy);
+  }
+  for (let i = 0; i < grid.length; i++) if (grid[i] === myId && !visited[i]) isolatedSet.add(i);
+  recalcWarp();
+}
+
+// ===== マス判定・コスト計算 =====
+const ownerAt = (x, y) => (x < 0 || y < 0 || x >= N || y >= N) ? 0 : grid[y * N + x];
+function isWallAt(x, y) { const m = cellMods.get(y * N + x); return m && m.type === MOD_WALL; }
+function isNearMilitary(x, y) {
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    const o = ownerAt(x + dx, y + dy);
+    if (o && o !== myId && !isAlly(names[o]) && getPlayerIdeo(names[o]) === "military") return true;
+  }
+  return false;
+}
+function nearMine(x, y) {
+  if (ownerAt(x+1,y)===myId || ownerAt(x-1,y)===myId || ownerAt(x,y+1)===myId || ownerAt(x,y-1)===myId) return true;
+  if (hasWarp && warpAdj[y * N + x]) return true;
+  if (ideology === "guerrilla" && !isNearMilitary(x, y)) {
+    for (const [dx, dy] of [[2,0],[-2,0],[0,2],[0,-2],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      if (ownerAt(x + dx, y + dy) === myId) return true;
+    }
+  }
+  return false;
+}
+function costFor(x, y) {
+  const o = ownerAt(x, y), oName = names[o];
+  const isRebelling = myOverlord === oName && rebelUntil > srvNow();
+  if (o === myId || (o && (isAlly(oName) || (myOverlord === oName && !isRebelling) || isProtected(oName)))) return null;
+  if (myCount() === 0) return o ? null : 0;
+  const i = y * N + x, isFac = isFactoryType(spec[i]);
+  const baseEmpty = isFac ? FACTORY_EMPTY_COST : EMPTY_COST;
+  const baseEnemy = isFac ? FACTORY_ENEMY_COST : ENEMY_COST;
+  if (beaconArmed && inv.ticket > 0 && !o) return baseEmpty;
+  if (!nearMine(x, y)) return null;
+  let c = o ? baseEnemy + lvl[i] * DEF_PER_LV + (spec[i] === TYPE_FORT ? FORT_DEF : 0) : baseEmpty;
+  const tCore = o ? allPlayersCache[oName]?.core : null;
+  if (tCore && tCore.x === x && tCore.y === y) c += 5;
+  if (isWallAt(x, y) && o !== myId) c += 8;
+  if (o && ideology === "capital" && getPlayerIdeo(oName) === "engineer") c *= 2;
+  if (o && ideology === "guerrilla" && getPlayerIdeo(oName) === "military") c *= 2;
+  const siegeT = getSiegeTarget();
+  if ((o && oName === siegeT) || isRebelling || (worldWonders.hegemony?.holder && worldWonders.hegemony.holder !== myAlliance?.id && worldWonders.hegemony.holder !== myName)) c = Math.max(1, Math.floor(c * 0.5));
+  return c;
+}
+
+// ===== 収入・隔離崩壊 =====
+function getUpkeepRate() {
+  const cnt = myCount();
+  if (cnt <= 100) return 0;
+  // 100マス超過分10マスごとに1%天引き（上限50%）
+  return Math.min(0.50, Math.floor((cnt - 100) / 10) * 0.01);
+}
+
+function myResInc() {
+  let c = 0, w = 0, p = 0, m = 0;
+  const met = worldEvents.meteor;
+  const metActive = met && met.until > srvNow();
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] !== myId || isolatedSet.has(i)) continue;
+    const l = lvl[i], mod = cellMods.get(i);
+    if (coinMap[i] || (mod && mod.type === MOD_CAP_COIN)) c += COIN_CELL_HOURLY + l;
+    if (spec[i] === TYPE_WOOD || (mod && mod.type === MOD_WOOD)) w += RES_HOURLY + l;
+    if (spec[i] === TYPE_POWDER || (mod && mod.type === MOD_POWDER)) p += RES_HOURLY + l;
+    if (spec[i] === TYPE_METAL || (mod && mod.type === MOD_METAL)) m += RES_HOURLY + l;
+    if (metActive && i === met.y * N + met.x) { c += 10; w += 5; p += 5; m += 5; }
+  }
+  c += HOURLY_COINS;
+  if (ideology === "capital") c = Math.floor(c * 1.5);
+  const upkeep = getUpkeepRate();
+  if (upkeep > 0) c = Math.max(1, Math.floor(c * (1 - upkeep)));
+  if (capitalFallUntil > srvNow()) { c = Math.floor(c * .5); w = Math.floor(w * .5); p = Math.floor(p * .5); m = Math.floor(m * .5); }
+  return { c, w, p, m, upkeepRate: upkeep };
+}
+
+let bestScore = -1;
+async function sendScore(score) {
+  if (myName === "Guest" || score <= bestScore) return;
+  const url = `${DB}/gameData/${GAME_ID}/ranking/${encodeURIComponent(myName)}.json`;
+  if (bestScore < 0) {
+    const prev = await fetch(url).then(r => r.json()).catch(() => null);
+    bestScore = prev && typeof prev.score === "number" ? prev.score : 0;
+  }
+  if (score <= bestScore) return;
+  bestScore = score;
+  fetch(url, { method:"PUT", body:JSON.stringify({ score, updatedAt:srvNow() }) }).catch(()=>{});
+}
+
+function getWonderLeftMs(w) {
+  if (!w || !w.startedAt || !w.reqMs) return 0;
+  return Math.max(0, w.reqMs - activeMsBetween(w.startedAt, srvNow()));
+}
+
+async function checkVictoryCompletion() {
+  if (worldWonders.winner) return;
+  const check = (w, label) => {
+    if (w && w.holder && w.startedAt && getWonderLeftMs(w) <= 0) {
+      const winData = { winner: w.name || w.holder, method: label, at: srvNow() };
+      fetch(`${DB}/gameData/${GAME_ID}/world/wonders/winner.json`, { method:"PUT", body:JSON.stringify(winData) }).catch(()=>{});
+      worldWonders.winner = winData;
+    }
+  };
+  check(worldWonders.hegemony, "👑 覇権制圧");
+  if (worldWonders.dimension?.stage >= 3) check(worldWonders.dimension, "🏗️ 次元ゲート起動");
+  check(worldWonders.economy, "💰 世界経済掌握");
+}
+
+async function processHourlyAndDecay() {
+  if (myName === "Guest" || !playerLoaded || !loadedOnce || !timeReady) return;
+  checkVictoryCompletion();
+  const now = srvNow();
+  if (!lastActiveTick) { lastActiveTick = now; savePlayer(); return; }
+  const hrs = activeHoursSince(lastActiveTick, now);
+  const dIdx = Math.floor((now - 3 * HOUR) / DAY);
+  let changed = false, msgs = [];
+
+  if (dIdx > lastDay && isActiveTime(now)) { coins += DAILY_COINS; lastDay = dIdx; changed = true; msgs.push(`🎁 デイリー +${DAILY_COINS}🪙`); }
+  const actMs = activeMsBetween(lastActiveTick, now);
+  if (hrs > 0) {
+    const n = Math.min(hrs, 24), inc = myResInc(), mult = srvNow() < boostUntil ? 2 : 1;
+    let gC = inc.c * n * mult, gW = inc.w * n * mult, gP = inc.p * n * mult, gM = inc.m * n * mult;
+    if (inc.upkeepRate > 0) msgs.push(`🏛️ 帝国維持費: -${Math.round(inc.upkeepRate * 100)}%天引き適用`);
+    if (myAlliance) {
+      const aC = Math.floor(gC * 0.1), aW = Math.floor(gW * 0.1), aP = Math.floor(gP * 0.1), aM = Math.floor(gM * 0.1);
+      gC -= aC; gW -= aW; gP -= aP; gM -= aM;
+      msgs.push(`🤝 同盟維持費(-10%): 🪙-${aC} 🪵-${aW} 💥-${aP} ⚙️-${aM}`);
+    }
+    if (myOverlord) {
+      const tC = Math.floor(gC * .5), tW = Math.floor(gW * .5), tP = Math.floor(gP * .5), tM = Math.floor(gM * .5);
+      gC -= tC; gW -= tW; gP -= tP; gM -= tM;
+      fetch(`${DB}/gameData/${GAME_ID}/mailbox/${encodeURIComponent(myOverlord)}.json`, { method:"POST", body:JSON.stringify({ type:"tribute", from:myName, c:tC, w:tW, p:tP, m:tM, t:now }) }).catch(()=>{});
+    }
+    coins += gC; wood += gW; powder += gP; metal += gM;
+    lastActiveTick = now - (actMs % HOUR); changed = true;
+    msgs.push(`⏱ 毎時生産 +${gC}🪙 🪵+${gW} 💥+${gP} ⚙️+${gM}`);
+
+    // 覇権・経済勝利の条件維持監視（下回ったら阻止）
+    if (worldWonders.hegemony?.holder && (worldWonders.hegemony.holder === myName || worldWonders.hegemony.holder === myAlliance?.id)) {
+      const fCnt = megaFactories.filter(f => { for (let dy=0;dy<3;dy++) for (let dx=0;dx<3;dx++) if (grid[(f.y+dy)*N+(f.x+dx)]===myId) return true; return false; }).length;
+      if (myCount() < 1000 || fCnt < 6) {
+        fetch(`${DB}/gameData/${GAME_ID}/world/wonders/hegemony.json`, { method:"DELETE" }).catch(()=>{});
+        worldWonders.hegemony = {};
+        msgs.push("⚠️ 領土または工場数が条件を下回ったため、覇権カウントダウンが阻止されました！");
+      }
+    }
+    if (worldWonders.economy?.holder && (worldWonders.economy.holder === myName || worldWonders.economy.holder === myAlliance?.id)) {
+      const totalCoins = coinMap.reduce((a,b)=>a+b, 0) || 1;
+      let myCoins = 0; for (let i = 0; i < grid.length; i++) if (grid[i] === myId && coinMap[i]) myCoins++;
+      if ((myCoins / totalCoins) < 0.40) {
+        fetch(`${DB}/gameData/${GAME_ID}/world/wonders/economy.json`, { method:"DELETE" }).catch(()=>{});
+        worldWonders.economy = {};
+        msgs.push("⚠️ コインマス支配率が40%を下回ったため、経済掌握が阻止されました！");
+      }
+    }
+
+    // 隔離マス確率Lvダウン / 中立化
+    if (isolatedSet.size > 0) {
+      let decayed = 0, lost = 0;
+      for (const idx of isolatedSet) {
+        if (Math.random() < 0.4) {
+          const x = idx % N, y = (idx / N) | 0, k = toKey(x, y);
+          if (lvl[idx] > 0) {
+            const nl = lvl[idx] - 1; setXY(x, y, myName, nl);
+            fetch(cellUrl(k), { method:"PUT", body:JSON.stringify(encodeCell(myName, nl)) }).catch(()=>{});
+            decayed++;
+          } else {
+            setXY(x, y, null);
+            fetch(cellUrl(k), { method:"DELETE" }).catch(()=>{});
+            lost++;
+          }
+        }
+      }
+      if (decayed || lost) msgs.push(`⚠️ 補給線隔離で崩壊: Lv低下${decayed} / 中立化${lost}`);
+    }
+  }
+  if (changed) { savePlayer(); updateInfo(); dirty = true; if (msgs.length) toast(msgs.join("\n")); }
+}
+
+function checkWonderDisruption(x, y) {
+  const dim = worldWonders.dimension;
+  if (dim && Math.abs(x - dim.x) <= 1 && Math.abs(y - dim.y) <= 1) {
+    fetch(`${DB}/gameData/${GAME_ID}/world/wonders/dimension.json`, { method:"DELETE" }).catch(()=>{});
+    worldWonders.dimension = {};
+    toast("💥 次元ゲート中枢が攻撃され、建造カウントダウンが阻止されました！");
+  }
+}
+
+// ===== プレイヤーデータ同期 =====
+async function savePlayer() {
+  if (myName === "Guest" || !playerLoaded) return;
+  const doc = {
+    coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps,
+    protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
+  };
+  await fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) }).catch(()=>{});
+}
+async function loadPlayer() {
+  if (myName === "Guest") { syncTime(); return; }
+  await syncTime();
+  const p = await fetch(playerUrl).then(r => r.json()).catch(() => null) || {};
+  coins = p.coins || 0; wood = p.res?.wood || 0; powder = p.res?.powder || 0; metal = p.res?.metal || 0;
+  started = !!p.started; ideology = p.ideology || null; ideoChangedAt = p.ideoChangedAt || 0;
+  core = p.core || null; camps = Array.isArray(p.camps) ? p.camps : [];
+  protectUntil = p.protectUntil || 0; protectBroken = !!p.protectBroken;
+  lastActiveTick = p.lastActiveTick || srvNow(); lastDay = p.day || 0;
+  if (!p.lastActiveTick && myName !== "Guest") savePlayer();
+  skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
+  capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
+  for (const k in inv) inv[k] = p.items?.[k] || 0;
+  playerLoaded = true;
+  recalcSupply();
+  if (!ideology && myName !== "Guest") setTimeout(() => { renderIdeoModal(); $("ideoModal").classList.add("show"); }, 600);
+  updateInfo();
+}
+
+// ===== セル・MOD・ワールドデータ =====
+function setXY(x, y, name, lv = 0) {
+  if (x < 0 || y < 0 || x >= N || y >= N) return;
+  const i = y * N + x, old = grid[i];
+  if (old) counts[old]--;
+  if (name) { const id = idOf(name); grid[i] = id; counts[id]++; lvl[i] = lv | 0; } else { grid[i] = 0; lvl[i] = 0; }
+}
+function encodeCell(name, lv = 0) { const pid = pIdByName.get(name); return lv > 0 ? `${pid}|${lv}` : pid; }
+function parseCell(v) {
+  if (v === null || v === undefined) return [null, 0];
+  if (typeof v === "number") return [pIdNames[v] || null, 0];
+  if (typeof v === "string") { const [p, l] = v.split("|"); return [pIdNames[+p] || null, +l | 0]; }
+  return [null, 0];
+}
+
+// ===== メインアクション: 獲得 & 強化 =====
+let selected = null, busy = false, engMode = false, engTargets = [], skillMode = null;
+
+async function claim() {
+  if (!selected || busy || myName === "Guest") return;
+  if (!isActiveTime()) { toast("⏰ 現在は時間停止中です (平日9:00〜17:00稼働)"); return; }
+  if (!ideology) { renderIdeoModal(); $("ideoModal").classList.add("show"); toast("まず陣営(イデオロギー)を選択してください！"); return; }
+  const { x, y } = selected, key = toKey(x, y), cost = costFor(x, y);
+  if (cost === null || coins < cost) { toast(coins < cost ? "🪙 コイン不足" : "獲得できません"); return; }
+
+  const i = y * N + x, oldO = names[grid[i]], oldL = lvl[i], oldMod = cellMods.get(i);
+  let newLv = 0;
+  if (oldO && ideology === "capital" && getPlayerIdeo(oldO) === "military" && oldL >= 4 && getPlayerIdeo(oldO) !== "engineer") newLv = oldL;
+
+  busy = true;
+  try {
+    await ensurePidsFor([myName]);
+    coins -= cost;
+    if (myCount() === 0) { core = { x, y }; protectUntil = srvNow() + 2 * HOUR; protectBroken = false; toast("🛡️ 初狩り防止シールド起動(2時間/100マス未満)"); }
+    else if (oldO) { protectBroken = true; }
+    if (beaconArmed && inv.ticket > 0 && !oldO) { inv.ticket--; beaconArmed = false; toast("🎫 空挺降下成功！"); }
+    started = true;
+    setXY(x, y, myName, newLv);
+    if (myCount() >= 100) protectBroken = true;
+    recalcSupply();
+    dirty = true; updateInfo();
+
+    await fetch(cellUrl(key), { method:"PUT", body:JSON.stringify(encodeCell(myName, newLv)) });
+
+    // 資本のコインマス化・防壁解除特則
+    if (oldMod && (oldMod.type === MOD_CAP_COIN || oldMod.type === MOD_WALL)) { cellMods.delete(i); fetch(modUrl(key), { method:"DELETE" }).catch(()=>{}); }
+    // 対電脳: ゲリラの情報強奪（相手から実際に10%減算）
+    if (oldO && ideology === "guerrilla" && getPlayerIdeo(oldO) === "cyber") {
+      coins += cost;
+      const tp = allPlayersCache[oldO];
+      if (tp) {
+        const sC = Math.floor((tp.coins||0)*0.1), sW = Math.floor((tp.res?.wood||0)*0.1), sP = Math.floor((tp.res?.powder||0)*0.1), sM = Math.floor((tp.res?.metal||0)*0.1);
+        coins += sC; wood += sW; powder += sP; metal += sM;
+        fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ coins:Math.max(0,(tp.coins||0)-sC), res:{ wood:Math.max(0,(tp.res?.wood||0)-sW), powder:Math.max(0,(tp.res?.powder||0)-sP), metal:Math.max(0,(tp.res?.metal||0)-sM) } }) }).catch(()=>{});
+        toast(`⚡ 対電脳強奪！コスト返還＆ 🪙+${sC} 🪵+${sW} 💥+${sP} ⚙️+${sM}`);
+      }
+    }
+    // 対ゲリラ: 軍閥による仮拠点一撃連鎖崩壊
+    if (oldO && ideology === "military" && getPlayerIdeo(oldO) === "guerrilla") {
+      const tCamps = allPlayersCache[oldO]?.camps || [];
+      const hitCamp = tCamps.find(cp => x >= cp.x && x <= cp.x + 1 && y >= cp.y && y <= cp.y + 1);
+      if (hitCamp) {
+        for (let dy = 0; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) {
+          const cx = hitCamp.x + dx, cy = hitCamp.y + dy;
+          if ((cx !== x || cy !== y) && ownerAt(cx, cy) === idMap.get(oldO)) { setXY(cx, cy, null); fetch(cellUrl(toKey(cx, cy)), { method:"DELETE" }).catch(()=>{}); }
+        }
+        toast(`🛡️ ゲリラの仮拠点(⛺)を連鎖崩壊させました！`);
+      }
+    }
+    // 本拠地陥落（25%強奪）
+    const tCore = oldO ? allPlayersCache[oldO]?.core : null;
+    if (tCore && tCore.x === x && tCore.y === y) {
+      const tp = allPlayersCache[oldO];
+      const rC = Math.floor((tp.coins||0)*0.25), rW = Math.floor((tp.res?.wood||0)*0.25), rP = Math.floor((tp.res?.powder||0)*0.25), rM = Math.floor((tp.res?.metal||0)*0.25);
+      coins += rC; wood += rW; powder += rP; metal += rM;
+      fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ coins:Math.max(0,(tp.coins||0)-rC), res:{ wood:Math.max(0,(tp.res?.wood||0)-rW), powder:Math.max(0,(tp.res?.powder||0)-rP), metal:Math.max(0,(tp.res?.metal||0)-rM) }, capitalFallUntil:srvNow()+HOUR }) }).catch(()=>{});
+      toast(`🏰 ${oldO} の本拠地を陥落！資産25%強奪 (+${rC}🪙)！`);
+    }
+    // 独立戦争進捗
+    if (myOverlord && rebelUntil > srvNow()) {
+      if (oldO === myOverlord) rebelHits++;
+      if (rebelHits >= 5 || myCount() >= 30) {
+        await fetch(`${vassalUrl}/${encodeURIComponent(myName)}.json`, { method:"DELETE" }).catch(()=>{});
+        myOverlord = null; rebelUntil = 0; rebelHits = 0;
+        toast("🕊️ 独立戦争に勝利！宗主国から完全独立しました！");
+      }
+    }
+    // 賞金首ボーナス
+    if (oldO && oldO === getBountyTarget()) { coins += cost + 5; wood += 1; powder += 1; metal += 1; toast(`🎯 賞金首撃破！コスト返還 + 5🪙 & 素材！`); }
+    // 経済勝利供託中の相手からの強奪
+    if (oldO && worldWonders.economy?.holder && (worldWonders.economy.holder === oldO || worldWonders.economy.holder === allPlayersCache[oldO]?.allianceId)) {
+      coins += 100; toast("💰 経済覇権金庫から 100🪙 強奪！");
+    }
+    if (oldO) { checkVassalize(oldO); checkWonderDisruption(x, y); }
+    sendScore(myCount());
+    savePlayer();
+  } finally { busy = false; updateInfo(); dirty = true; }
+}
+
+async function upgrade() {
+  if (!selected || busy || myName === "Guest") return;
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  const { x, y } = selected, i = y * N + x, maxL = ideology === "military" ? MAX_LV_MIL : MAX_LV_BASE;
+  const curL = lvl[i];
+  if (curL >= maxL) return;
+  let cost = UPGRADE_COSTS[curL];
+  if (ideology === "engineer") cost = Math.max(1, Math.floor(cost * 0.75));
+  if (coins < cost) { toast("🪙 コイン不足"); return; }
+  busy = true;
+  try {
+    const gam = isEvtOn("gamble");
+    const nl = gam ? (Math.random() < 0.5 ? Math.min(maxL, curL + 2) : curL) : curL + 1;
+    coins -= cost;
+    if (nl !== curL) setXY(x, y, myName, nl);
+    dirty = true; updateInfo();
+    if (nl !== curL) {
+      await ensurePidsFor([myName]);
+      await fetch(cellUrl(toKey(x, y)), { method:"PUT", body:JSON.stringify(encodeCell(myName, nl)) });
+    }
+    savePlayer(); toast(nl === curL ? `🎰 失敗… 🪙${cost}没収` : gam ? `🎰 大成功！Lv${nl}` : `🛡️ 強化 Lv${nl} 完了！`);
+  } finally { busy = false; updateInfo(); dirty = true; }
+}
+$("claim").onclick = () => (selected && ownerAt(selected.x, selected.y) === myId) ? upgrade() : claim();
+
+// ===== 陣営モーダル & 固有スキル =====
+function renderIdeoModal() {
+  const v = $("ideoView");
+  $("ideoTag").textContent = ideology ? IDEOLOGIES[ideology].name : "未選択";
+  let html = "";
+  if (!ideology) {
+    html += `<div style="margin-bottom:8px;color:var(--gold)">最初に1つの陣営を選んでください（変更は24時間CT）</div>`;
+    for (const id in IDEOLOGIES) {
+      const d = IDEOLOGIES[id];
+      html += `<div class="crow"><div class="ci"><div class="ct" style="color:${d.color}">${d.name}</div><div class="cd">①常時: ${d.pDesc}<br>②一発: ${d.aName} - ${d.aDesc}<br>③対策: ${d.cDesc}</div></div><button class="cbtn lime" onclick="selectIdeo('${id}')">選択</button></div>`;
+    }
+  } else {
+    const d = IDEOLOGIES[ideology], now = srvNow();
+    const mainRem = Math.max(0, (skillCD.main || 0) - now), cntRem = Math.max(0, (skillCD.counter || 0) - now);
+    html += `
+      <div class="custom-form">
+        <div style="font-weight:800;font-size:15px;color:${d.color}">${d.name}</div>
+        <div style="margin:6px 0"><b>① 常時パッシブ:</b> ${d.pDesc}</div>
+        <div style="margin:6px 0"><b>③ 特定職対策:</b> ${d.cDesc}</div>
+      </div>
+      <div class="crow">
+        <div class="ci"><div class="ct">⚡ 一発スキル: ${d.aName}</div><div class="cd">${d.aDesc}</div></div>
+        <button class="cbtn gold" onclick="triggerMainSkill()" ${mainRem > 0 ? "disabled" : ""}>${mainRem > 0 ? fmt(mainRem) : "発動"}</button>
+      </div>
+    `;
+    if (ideology === "cyber") {
+      html += `<div class="crow"><div class="ci"><div class="ct">🎯 対策スキル: 設計図ハック</div><div class="cd">${d.cDesc}</div></div><button class="cbtn mag" onclick="triggerCyberHack()" ${cntRem > 0 ? "disabled" : ""}>${cntRem > 0 ? fmt(cntRem) : "発動"}</button></div>`;
+    }
+    const chgRem = Math.max(0, (ideoChangedAt + 24 * HOUR) - now);
+    html += `<div style="margin-top:12px;border-top:1px dashed rgba(255,255,255,.2);padding-top:8px"><button class="cbtn" style="width:100%" onclick="resetIdeo()" ${chgRem > 0 ? "disabled" : ""}>🔄 陣営変更 (${chgRem > 0 ? "残り"+fmt(chgRem) : "可能/🪙50"})</button></div>`;
+  }
+  v.innerHTML = html;
+}
+window.selectIdeo = id => { ideology = id; recalcSupply(); ideoChangedAt = srvNow(); savePlayer(); $("ideoModal").classList.remove("show"); updateInfo(); dirty = true; toast(`🎭 ${IDEOLOGIES[id].name} を選択しました！`); };
+window.resetIdeo = () => { if (coins < 50) { toast("変更には🪙50必要です"); return; } coins -= 50; ideology = null; renderIdeoModal(); };
+
+window.triggerMainSkill = () => {
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  $("ideoModal").classList.remove("show");
+  if (ideology === "cyber") {
+    const inc = myResInc();
+    coins += inc.c; wood += inc.w; powder += inc.p; metal += inc.m;
+    skillCD.main = srvNow() + IDEOLOGIES.cyber.aCT; savePlayer(); updateInfo();
+    toast(`🔬 データ加速完了！+${inc.c}🪙 🪵+${inc.w} 💥+${inc.p} ⚙️+${inc.m}`);
+  } else if (ideology === "engineer") {
+    engMode = true; engTargets = []; $("engConfirm").style.display = "inline-block"; $("engConfirm").textContent = "改造確定(0/5)";
+    updateAlertBar(); toast("🏗️ 自領土を最大5マスまでタップ選択してください");
+  } else {
+    skillMode = ideology; updateAlertBar();
+    toast("🎯 マップ上でスキル発動地点をタップして決定ボタンを押してください");
+  }
+};
+window.triggerCyberHack = () => {
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  $("ideoModal").classList.remove("show"); skillMode = "cyber_hack"; updateAlertBar();
+  toast("🎯 ハックする工兵の改造マス/防壁をタップしてください");
+};
+
+// スキル着弾処理
+async function executePointSkill(x, y) {
+  const mode = skillMode; skillMode = null; updateAlertBar();
+  if (mode === "capital") {
+    if (ownerAt(x, y) !== myId) { toast("自領土の中心を選んでください"); return; }
+    for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x+dx, ny = y+dy;
+      if (ownerAt(nx, ny) === myId) { const i = ny*N+nx; cellMods.set(i, { type:MOD_CAP_COIN, owner:myName }); fetch(modUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify({ type:MOD_CAP_COIN, owner:myName }) }); }
+    }
+    skillCD.main = srvNow() + IDEOLOGIES.capital.aCT; savePlayer(); toast("💰 ゴールドラッシュ発動！十字5マスがコインマス化！");
+  } else if (mode === "military") {
+    await ensurePidsFor([myName]);
+    let cap = 0, dmg = 0, up = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x+dx, ny = y+dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const i = ny*N+nx, o = grid[i], oName = names[o], l = lvl[i];
+      if (o === myId) { const nl = Math.min(MAX_LV_MIL, l + 2); setXY(nx, ny, myName, nl); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, nl)) }); up++; }
+      else if (o && !isAlly(oName) && !isProtected(oName)) {
+        if (l <= 1) { setXY(nx, ny, myName, 0); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 0)) }); cap++; }
+        else { setXY(nx, ny, oName, l - 2); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(oName, l - 2)) }); dmg++; }
+      }
+    }
+    skillCD.main = srvNow() + IDEOLOGIES.military.aCT; recalcSupply(); savePlayer();
+    toast(`🛡️ 絨毯砲撃！奪取:${cap} / 削り:${dmg} / 味方強化:${up}`);
+  } else if (mode === "guerrilla") {
+    if (isNearMilitary(x, y)) { toast("🛡️ 軍閥の警戒網(周囲2マス)内には設営できません！"); return; }
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (ownerAt(x+dx, y+dy) !== 0) { toast("2×2の空き地を選んでください"); return; }
+    await ensurePidsFor([myName]);
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) { setXY(x+dx, y+dy, myName, 0); fetch(cellUrl(toKey(x+dx, y+dy)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 0)) }); }
+    camps.push({ x, y }); skillCD.main = srvNow() + IDEOLOGIES.guerrilla.aCT; recalcSupply(); savePlayer();
+    toast("⚡ 2×2 秘密野営地を設営しました！");
+  } else if (mode === "cyber_hack") {
+    let cnt = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const i = ny * N + nx;
+      if (cellMods.has(i)) { cellMods.delete(i); fetch(modUrl(toKey(nx, ny)), { method:"DELETE" }).catch(()=>{}); cnt++; }
+    }
+    if (!cnt) { toast("周囲3×3に改造マス/防壁がありません"); return; }
+    wood += cnt * 5; powder += cnt * 5; metal += cnt * 5;
+    skillCD.counter = srvNow() + 6*HOUR; savePlayer();
+    toast(`🔬 設計図ハック成功！${cnt}マスを一斉解体し素材各+${cnt*5}奪取！`);
+  }
+  dirty = true; updateInfo();
+}
+
+$("engConfirm").onclick = async () => {
+  if (!engTargets.length) { engMode = false; $("engConfirm").style.display = "none"; updateAlertBar(); return; }
+  const choice = prompt("改造タイプを番号で入力してください:\n1: 🧱防壁(通行止め)\n2: 🌲森林(木材)\n3: 🌋鉱床(火薬)\n4: ⛰️鉄鉱(金属)");
+  const map = { "1":MOD_WALL, "2":MOD_WOOD, "3":MOD_POWDER, "4":MOD_METAL };
+  const t = map[choice]; if (!t) return;
+  for (const idx of engTargets) {
+    const x = idx%N, y = (idx/N)|0;
+    cellMods.set(idx, { type:t, owner:myName });
+    fetch(modUrl(toKey(x, y)), { method:"PUT", body:JSON.stringify({ type:t, owner:myName }) });
+  }
+  const cnt = engTargets.length;
+  engMode = false; engTargets = []; $("engConfirm").style.display = "none";
+  skillCD.main = srvNow() + IDEOLOGIES.engineer.aCT; savePlayer(); updateAlertBar(); dirty = true;
+  toast(`🏗️ ${cnt}マスを一括改造しました！`);
+};
+
+// ===== 3大特殊勝利ルート =====
+function renderVictoryModal() {
+  const v = $("victoryView"), now = srvNow();
+  const holderId = myAlliance ? myAlliance.id : myName;
+  const heg = worldWonders.hegemony || {}, dim = worldWonders.dimension || {}, eco = worldWonders.economy || {};
+  const myFacCount = megaFactories.filter(f => {
+    for (let dy=0;dy<3;dy++) for (let dx=0;dx<3;dx++) if (grid[(f.y+dy)*N+(f.x+dx)] === myId) return true;
+    return false;
+  }).length;
+  const totalCoinsOnMap = coinMap.reduce((a,b)=>a+b, 0) || 1;
+  let myCoinsMap = 0; for (let i=0;i<grid.length;i++) if (grid[i]===myId && coinMap[i]) myCoinsMap++;
+  const coinPct = ((myCoinsMap / totalCoinsOnMap) * 100).toFixed(1);
+
+  v.innerHTML = (worldWonders.winner ? `<div class="custom-form" style="border-color:var(--gold);text-align:center"><b style="color:var(--gold);font-size:15px">🎉 優勝決定: ${esc(worldWonders.winner.winner)}</b><br>${esc(worldWonders.winner.method)} 達成！</div>` : "") + `
+    <div class="crow"><div class="ci">
+      <div class="ct">👑 覇権勝利 (工場6箇所 ＋ 1,000マス ＋ 稼働16h)</div>
+      <div class="cd">現在: 工場 ${myFacCount}/9 ・ 領土 ${myCount()}/1000マス ${heg.holder ? `<br><b style="color:var(--danger)">発動中: ${esc(heg.name)} (残り稼働 ${fmt(getWonderLeftMs(heg))})</b>`:""}</div>
+    </div><button class="cbtn gold" onclick="startHegemony()" ${myFacCount>=6 && myCount()>=1000 && !heg.holder ? "":"disabled"}>宣言</button></div>
+
+    <div class="crow"><div class="ci">
+      <div class="ct">🏗️ 次元ゲート勝利 (3段階資材投入 ＋ 稼働12h)</div>
+      <div class="cd">段階: ${dim.stage||0}/3 ${dim.holder ? `<br>建造中: ${esc(dim.name)} ${dim.stage>=3 ? `(残り稼働 ${fmt(getWonderLeftMs(dim))})`:""}` : ""}</div>
+    </div><button class="cbtn lime" onclick="buildDimension()">資材投入</button></div>
+
+    <div class="crow"><div class="ci">
+      <div class="ct">💰 経済掌握勝利 (50,000🪙供託 ＋ 金脈40% ＋ 稼働16h)</div>
+      <div class="cd">現在金脈支配: ${coinPct}% / 40% ${eco.holder ? `<br><b style="color:var(--gold)">供託中: ${esc(eco.name)} (残り稼働 ${fmt(getWonderLeftMs(eco))})</b>` : ""}</div>
+    </div><button class="cbtn mag" onclick="startEconomy()" ${coins>=50000 && Number(coinPct)>=40 && !eco.holder ? "":"disabled"}>供託</button></div>
+  `;
+}
+window.startHegemony = async () => {
+  const data = { holder: myAlliance?.id || myName, name: myAlliance?.name || myName, startedAt: srvNow(), reqMs: 16*HOUR };
+  await fetch(`${DB}/gameData/${GAME_ID}/world/wonders/hegemony.json`, { method:"PUT", body:JSON.stringify(data) });
+  toast("👑 覇権カウントダウン開始！稼働16時間耐え抜け！"); renderVictoryModal();
+};
+window.buildDimension = async () => {
+  const cur = worldWonders.dimension || { stage:0 };
+  const reqs = [{ w:1000, p:0, m:1000, c:3000 }, { w:0, p:1500, m:1500, c:5000 }, { w:2000, p:2000, m:2000, c:10000 }];
+  if (cur.stage >= 3) { toast("既に起動カウントダウン中です"); return; }
+  const r = reqs[cur.stage];
+  if (wood < r.w || powder < r.p || metal < r.m || coins < r.c) { toast(`第${cur.stage+1}段階不足! 必要: 🪵${r.w} 💥${r.p} ⚙️${r.m} 🪙${r.c}`); return; }
+  if (!core) { toast("本拠地がありません"); return; }
+  wood -= r.w; powder -= r.p; metal -= r.m; coins -= r.c; savePlayer();
+  const nxt = { holder: myName, name: myAlliance?.name || myName, stage: cur.stage + 1, x: core.x, y: core.y, startedAt: cur.stage === 2 ? srvNow() : 0, reqMs: 12*HOUR };
+  await fetch(`${DB}/gameData/${GAME_ID}/world/wonders/dimension.json`, { method:"PUT", body:JSON.stringify(nxt) });
+  toast(`🏗️ 次元ゲート第${nxt.stage}段階完成！`); renderVictoryModal();
+};
+window.startEconomy = async () => {
+  coins -= 50000; savePlayer();
+  const data = { holder: myAlliance?.id || myName, name: myAlliance?.name || myName, startedAt: srvNow(), reqMs: 16*HOUR };
+  await fetch(`${DB}/gameData/${GAME_ID}/world/wonders/economy.json`, { method:"PUT", body:JSON.stringify(data) });
+  toast("💰 50,000🪙供託完了！稼働16時間生き残れば完全勝利！"); renderVictoryModal();
+};
+
+// ===== ランダムイベント (隕石・濃霧・闇商人) =====
+function updateAlertBar() {
+  const bar = $("alertBar"), now = srvNow();
+  let html = "";
+  if (worldWonders.winner) html += `<div class="pill gold">🏆 ゲーム決着！優勝: ${esc(worldWonders.winner.winner)} (${esc(worldWonders.winner.method)})</div>`;
+  if (!isActiveTime(now)) html += `<div class="pill warn">🌙 時間停止中 (平日 9:00〜17:00 のみ稼働)</div>`;
+  const siegeT = getSiegeTarget();
+  if (siegeT && siegeT !== myName) html += `<div class="pill warn">⚔️ 包囲網発動中: ${esc(siegeT)} への攻撃コスト半額！</div>`;
+  if (isProtected(myName)) html += `<div class="pill">🛡️ 初心者保護中 (他者攻撃不可 / 100マス未満)</div>`;
+  if (worldEvents.meteor && worldEvents.meteor.until > now) html += `<div class="pill gold" style="cursor:pointer" onclick="scale=20;centerOn(${worldEvents.meteor.x}+.5,${worldEvents.meteor.y}+.5)">☄️ 隕石落下中 (${worldEvents.meteor.x},${worldEvents.meteor.y}) 残り${fmtM(worldEvents.meteor.until - now)} (タップで移動)</div>`;
+  if (worldEvents.fog && worldEvents.fog.until > now) html += `<div class="pill warn">🌫️ 濃霧発生中 (周囲4マス以外不可視) 残り${fmtM(worldEvents.fog.until - now)}</div>`;
+  if (isEvtOn("gamble")) html += `<div class="pill gold">🎰 ギャンブル・アワー: 強化は50%で+2Lv / 失敗でコイン没収 残り${fmtM(worldEvents.gamble.until - now)}</div>`;
+  const mk = isEvtOn("mask");
+  if (mk) html += `<div class="pill warn">🎭 仮面舞踏会: 敵マスの所有者が不明 残り${fmtM(worldEvents.mask.until - now)}</div>`;
+  if (mk !== maskPrev) { maskPrev = mk; dirty = true; }
+  const dNow = new Date(now), isMerchWin = dNow.getMinutes() < 10 && ((dNow.getHours() * 131 + dNow.getDate() * 37) % 2 === 0);
+  const low = getLowestPlayer();
+  if (low === myName && isMerchWin && isActiveTime(now)) html += `<div class="pill gold" style="cursor:pointer" onclick="openMerchant()">🕵️‍♂️ 闇商人が出現中！(残り${10 - dNow.getMinutes()}分・タップで開く)</div>`;
+  if (skillMode) html += `<div class="pill mode" onclick="skillMode=null;updateAlertBar()">🎯 スキルターゲット選択中 (タップして発動 / ここを押してキャンセル)</div>`;
+  if (engMode) html += `<div class="pill mode">🏗️ 工兵改造モード: 最大5マス選択して下の確定ボタンを押してください</div>`;
+  if (bar._h !== html) { bar._h = html; bar.innerHTML = html; }
+}
+window.openMerchant = () => {
+  $("merchantView").innerHTML = `
+    <div style="margin-bottom:8px;color:var(--gold)">最下位限定の秘密取引所へようこそ。格安で逆転の一手を提供します。</div>
+    <div class="crow"><div class="ci"><div class="ct">🚀 闇ミサイルセット (ミサイル×2)</div><div class="cd">市場価格の半額以下！</div></div><button class="cbtn gold" onclick="buyMerch('m')">🪙15</button></div>
+    <div class="crow"><div class="ci"><div class="ct">📦 緊急物資パック (木/火薬/鉄 各+50)</div><div class="cd">反撃の足掛かりに。</div></div><button class="cbtn gold" onclick="buyMerch('r')">🪙20</button></div>
+  `;
+  $("merchantModal").classList.add("show");
+};
+window.buyMerch = t => {
+  if (t === "m") { if (coins < 15) return toast("コイン不足"); coins -= 15; inv.missile = Math.min(5, inv.missile + 2); toast("🚀 闇ミサイル入手！"); }
+  else { if (coins < 20) return toast("コイン不足"); coins -= 20; wood += 50; powder += 50; metal += 50; toast("📦 緊急物資入手！"); }
+  savePlayer(); updateInfo();
+};
+
+// ===== 描画エンジン (濃霧・防壁・隔離表示対応) =====
+const cv = $("cv"), ctx = cv.getContext("2d");
+let W = 0, H = 0, dpr = 1, scale = 8, ox = 0, oy = 0, dirty = true;
+function resize() { dpr = window.devicePixelRatio || 1; W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; dirty = true; }
+window.addEventListener("resize", resize);
+function clampView() {
+  const ms = Math.min(W, H) / N * 0.9; scale = Math.max(Math.max(0.5, ms), Math.min(64, scale));
+  const bw = N * scale;
+  if (scale <= ms * 1.02) { ox = (W - bw) / 2; oy = (H - bw) / 2; }
+  else { const mx = Math.max(80, W * .7), my = Math.max(80, H * .7); ox = Math.min(mx, Math.max(W - bw - mx, ox)); oy = Math.min(my, Math.max(H - bw - my, oy)); }
+}
+function centerOn(cx, cy) { ox = W / 2 - cx * scale; oy = H / 2 - cy * scale; clampView(); dirty = true; }
+
+function buildFogMask() {
+  if (!worldEvents.fog || worldEvents.fog.until <= srvNow()) { fogMask = null; return; }
+  fogMask = new Uint8Array(N * N);
+  for (let i = 0; i < grid.length; i++) {
+    const o = grid[i]; if (!o || !(o === myId || isAlly(names[o]))) continue;
+    const cx = i % N, cy = (i / N) | 0;
+    for (let dy = -4; dy <= 4; dy++) {
+      const yy = cy + dy; if (yy < 0 || yy >= N) continue;
+      for (let dx = -4; dx <= 4; dx++) { const xx = cx + dx; if (xx >= 0 && xx < N) fogMask[yy * N + xx] = 1; }
+    }
+  }
+}
+function isVisibleInFog(x, y) { return !fogMask || fogMask[y * N + x] === 1; }
+
+function draw() {
+  buildFogMask();
+  const maskOn = isEvtOn("mask");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const bw = N * scale; ctx.fillStyle = "#1a1650"; ctx.fillRect(ox, oy, bw, bw);
+  const x0 = Math.max(0, Math.floor(-ox / scale)), x1 = Math.min(N - 1, Math.floor((W - ox) / scale));
+  const y0 = Math.max(0, Math.floor(-oy / scale)), y1 = Math.min(N - 1, Math.floor((H - oy) / scale));
+  const met = worldEvents.meteor && worldEvents.meteor.until > srvNow() ? worldEvents.meteor : null;
+
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const i = y * N + x, px = ox + x * scale, py = oy + y * scale;
+    if (!isVisibleInFog(x, y)) { ctx.fillStyle = "#080614"; ctx.fillRect(px, py, scale, scale); continue; }
+    const o = grid[i], mod = cellMods.get(i);
+    if (mod && mod.type === MOD_WALL) { ctx.fillStyle = "#4a4e69"; ctx.fillRect(px, py, scale, scale); }
+    else if (o) {
+      ctx.fillStyle = (maskOn && o !== myId && !isAlly(names[o])) ? "rgba(140,140,150,.75)" : cols(names[o]).fillA; ctx.fillRect(px, py, scale, scale);
+      if (o === myId && isolatedSet.has(i)) { ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(px, py, scale, scale); }
+    } else if (coinMap[i] || spec[i]) {
+      ctx.fillStyle = coinMap[i] ? "rgba(255,225,77,.12)" : "rgba(0,240,255,.1)"; ctx.fillRect(px, py, scale, scale);
+    }
+    if (engMode && engTargets.includes(i)) { ctx.fillStyle = "rgba(255,225,77,.5)"; ctx.fillRect(px, py, scale, scale); }
+  }
+
+  if (scale >= 4) {
+    ctx.beginPath();
+    for (let x = x0; x <= x1 + 1; x++) { const px = Math.round(ox + x * scale) + .5; ctx.moveTo(px, Math.max(0, oy)); ctx.lineTo(px, Math.min(H, oy + bw)); }
+    for (let y = y0; y <= y1 + 1; y++) { const py = Math.round(oy + y * scale) + .5; ctx.moveTo(Math.max(0, ox), py); ctx.lineTo(Math.min(W, ox + bw), py); }
+    ctx.strokeStyle = "rgba(0,240,255,.18)"; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  for (const fac of megaFactories) {
+    if (fac.x + 3 < x0 || fac.x > x1 || fac.y + 3 < y0 || fac.y > y1) continue;
+    const fpx = ox + fac.x * scale, fpy = oy + fac.y * scale, fs = 3 * scale;
+    ctx.strokeStyle = fac.type === FAC_WEAPON ? "#ff3366" : fac.type === FAC_TECH ? "#00d2ff" : "#ffaa00";
+    ctx.lineWidth = 2; ctx.strokeRect(fpx + 1, fpy + 1, fs - 2, fs - 2);
+    if (scale >= 7) { ctx.font = `${Math.floor(scale * 1.3)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(fac.type===FAC_WEAPON?"🏭":fac.type===FAC_TECH?"🔬":"🏗️", fpx + fs/2, fpy + fs/2); }
+  }
+
+  if (scale >= 7) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!isVisibleInFog(x, y)) continue;
+      const i = y * N + x, px = ox + x * scale, py = oy + y * scale, mod = cellMods.get(i), sp = spec[i];
+      ctx.font = `${Math.floor(scale * .6)}px sans-serif`;
+      if (core && core.x === x && core.y === y && grid[i] === myId) ctx.fillText("🏰", px + scale/2, py + scale/2);
+      else if (grid[i] === myId && camps.some(cp => x >= cp.x && x <= cp.x + 1 && y >= cp.y && y <= cp.y + 1)) ctx.fillText("⛺", px + scale/2, py + scale/2);
+      else if (mod?.type === MOD_WALL) ctx.fillText("🧱", px + scale/2, py + scale/2);
+      else if (met && met.x === x && met.y === y) ctx.fillText("💎", px + scale/2, py + scale/2);
+      else if (coinMap[i] || mod?.type === MOD_CAP_COIN) ctx.fillText("💰", px + scale/2, py + scale/2);
+      else if (sp === TYPE_WOOD || mod?.type === MOD_WOOD) ctx.fillText("🌲", px + scale/2, py + scale/2);
+      else if (sp === TYPE_POWDER || mod?.type === MOD_POWDER) ctx.fillText("🌋", px + scale/2, py + scale/2);
+      else if (sp === TYPE_METAL || mod?.type === MOD_METAL) ctx.fillText("⛰️", px + scale/2, py + scale/2);
+      else if (sp === TYPE_WARP) ctx.fillText("🌀", px + scale/2, py + scale/2);
+      else if (sp === TYPE_FORT) ctx.fillText("🛡️", px + scale/2, py + scale/2);
+      if (lvl[i] > 0 && grid[i] && scale >= 11) {
+        ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.floor(scale * .35)}px sans-serif`;
+        ctx.fillText("L" + lvl[i], px + scale * .78, py + scale * .25);
+      }
+    }
+  }
+  if (selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.strokeRect(ox + selected.x * scale, oy + selected.y * scale, scale, scale); }
+}
+(function loop() { if (dirty) { dirty = false; draw(); } requestAnimationFrame(loop); })();
+
+// ===== タッチ/マウス操作 =====
+const ptrs = new Map(); let dragMoved = 0, pinchDist = 0, downPos = null;
+cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); const r = cv.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; ptrs.set(e.pointerId, { x, y }); dragMoved = 0; downPos = { x, y }; if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinchDist = Math.hypot(a.x - b.x, a.y - b.y); } });
+cv.addEventListener("pointermove", e => {
+  const r = cv.getBoundingClientRect(), nx = e.clientX - r.left, ny = e.clientY - r.top, p = ptrs.get(e.pointerId); if (!p) return;
+  if (ptrs.size === 1) { ox += nx - p.x; oy += ny - p.y; dragMoved += Math.abs(nx - p.x) + Math.abs(ny - p.y); }
+  else if (ptrs.size === 2) {
+    const pts = [...ptrs.values()], o = pts[0] === p ? pts[1] : pts[0], d = Math.hypot(nx - o.x, ny - o.y);
+    if (pinchDist > 0 && d > 0) { const wx = (o.x - ox) / scale, wy = (o.y - oy) / scale; scale *= d / pinchDist; clampView(); ox = o.x - wx * scale; oy = o.y - wy * scale; }
+    pinchDist = d; dragMoved += 10;
+  }
+  p.x = nx; p.y = ny; clampView(); dirty = true;
+});
+cv.addEventListener("pointerup", e => {
+  const had = ptrs.delete(e.pointerId); pinchDist = 0;
+  if (had && ptrs.size === 0 && dragMoved < 6 && downPos) {
+    const x = Math.floor((downPos.x - ox) / scale), y = Math.floor((downPos.y - oy) / scale);
+    if (x >= 0 && y >= 0 && x < N && y < N) {
+      if (engMode) {
+        const i = y * N + x;
+        if (grid[i] !== myId) return toast("自領土のみ選択できます");
+        const idx = engTargets.indexOf(i);
+        if (idx >= 0) engTargets.splice(idx, 1); else if (engTargets.length < 5) engTargets.push(i);
+        $("engConfirm").textContent = `改造確定(${engTargets.length}/5)`; dirty = true;
+      } else if (skillMode) {
+        executePointSkill(x, y);
+      } else {
+        selected = { x, y }; updateInfo(); dirty = true;
+      }
+    }
+  }
+});
+cv.addEventListener("wheel", e => { e.preventDefault(); const wx = (e.offsetX - ox) / scale, wy = (e.offsetY - oy) / scale; scale *= e.deltaY < 0 ? 1.15 : 1 / 1.15; clampView(); ox = e.offsetX - wx * scale; oy = e.offsetY - wy * scale; clampView(); dirty = true; }, { passive:false });
+
+// ===== UI更新 & ランキング(電脳透視付き) =====
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3200); }
+const fmt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => String(v).padStart(2, "0")).join(":"); };
+const fmtM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+
+function updateInfo() {
+  $("coins").textContent = coins; $("rWood").textContent = wood; $("rPowder").textContent = powder; $("rMetal").textContent = metal;
+  const inc = myResInc();
+  $("incWood").textContent = `(+${inc.w})`; $("incPowder").textContent = `(+${inc.p})`; $("incMetal").textContent = `(+${inc.m})`;
+  $("myCells").textContent = myCount();
+  let rnk = 1; for (let k = 1; k < counts.length; k++) if (counts[k] > myCount()) rnk++;
+  $("myRank").textContent = myCount() > 0 ? `#${rnk}` : "";
+  $("sw").style.background = cols(myName).fill; $("sw").style.color = cols(myName).fill;
+  $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
+  const remH = HOUR - (activeMsBetween(lastActiveTick || srvNow(), srvNow()) % HOUR);
+  $("nextH").textContent = `⏱ ${fmtM(remH)} (+${inc.c}🪙)`;
+  const totInv = Object.values(inv).reduce((a, b) => a + b, 0);
+  $("mBadge").textContent = totInv; $("mBadge").style.display = totInv > 0 ? "flex" : "none";
+  $("worldClock").textContent = isActiveTime() ? "🟢 稼働中(9-17時)" : "🌙 時間停止中";
+  $("tabCyber").style.display = ideology === "cyber" ? "block" : "none";
+  updateAlertBar();
+
+  const info = $("info"), btn = $("claim");
+  if (!selected) { info.innerHTML = `<div class="t">マスをタップして選択</div><small>補給線や陣営スキルを活用しよう</small>`; btn.disabled = true; return; }
+  const { x, y } = selected, i = y * N + x, o = grid[i], oName = names[o], c = costFor(x, y);
+  let t = o ? `<span class="swatch" style="background:${cols(oName).fill}"></span>${esc(oName)} (${getPlayerIdeo(oName) ? IDEOLOGIES[getPlayerIdeo(oName)].name.split(" ")[0] : "無"})` : "空きマス";
+  if (o && o !== myId && !isAlly(oName) && isEvtOn("mask")) t = `<span class="swatch" style="background:#8c8c96"></span>？？？ (不明)`;
+  if (o === myId && isolatedSet.has(i)) t += ` <span class="tag no">⚠️隔離中</span>`;
+  if (o && isProtected(oName)) t += ` <span class="tag ally">🛡️無敵保護</span>`;
+  let s = "", ok = false;
+  if (o === myId) {
+    const maxL = ideology === "military" ? MAX_LV_MIL : MAX_LV_BASE;
+    if (lvl[i] >= maxL) s = `🛡️ Lv${lvl[i]} MAX`;
+    else { let uc = UPGRADE_COSTS[lvl[i]]; if (ideology === "engineer") uc = Math.max(1, Math.floor(uc * .75)); ok = coins >= uc; s = isEvtOn("gamble") ? `🎰 強化 🪙${uc} 50%でLv+2 / 失敗は没収` : `強化 🪙${uc} で Lv${lvl[i]+1}`; }
+    btn.textContent = lvl[i] >= maxL ? "MAX" : "強化⬆";
+  } else {
+    ok = c !== null && coins >= c;
+    s = c === null ? "獲得不可 (条件・距離・防壁・同盟確認)" : (c === 0 ? "初期配置 無料！" : `コスト 🪙${c}`);
+    btn.textContent = o ? "奪う！" : "獲得";
+  }
+  info.innerHTML = `<div class="t">(${x},${y}) ${t}</div><small>${s}</small>`;
+  btn.disabled = !ok || busy;
+}
+
+// ===== リアルタイム監視 & 管理者機能 =====
+function scheduleRefresh() {
+  if (refreshT) return;
+  refreshT = setTimeout(() => { refreshT = 0; recalcSupply(); updateInfo(); dirty = true; }, 120);
+}
+function connect() {
+  newES(pIdsUrl).addEventListener("put", e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/" && data) { setPidList(data); dirty = true; } else loadPids();
+  });
+  const cES = newES(`${DB}/gameData/${GAME_ID}/cells.json`);
+  cES.onopen = () => { $("status").textContent = "🟢 ONLINE"; };
+  cES.onerror = () => { $("status").textContent = "🔴 再接続中…"; };
+  cES.addEventListener("put", e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/") { grid.fill(0); counts.fill(0); if (data) for (const k in data) { const xy = parseKey(k), [o, l] = parseCell(data[k]); if (xy && o) setXY(xy[0], xy[1], o, l); } loadedOnce = true; recalcSupply(); goHome(); updateInfo(); dirty = true; $("status").textContent = "🟢 ONLINE"; }
+    else { const xy = parseKey(path.slice(1)), [o, l] = parseCell(data); if (xy) { setXY(xy[0], xy[1], o, l); scheduleRefresh(); } }
+  });
+  newES(`${DB}/gameData/${GAME_ID}/cellMods.json`).addEventListener("put", e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/") { cellMods.clear(); if (data) for (const k in data) { const xy = parseKey(k); if (xy) cellMods.set(xy[1]*N+xy[0], data[k]); } }
+    else { const xy = parseKey(path.slice(1)); if (xy) { if (data) cellMods.set(xy[1]*N+xy[0], data); else cellMods.delete(xy[1]*N+xy[0]); } }
+    dirty = true;
+  });
+  newES(`${DB}/gameData/${GAME_ID}/players.json`).addEventListener("put", e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/") allPlayersCache = data || {};
+    else allPlayersCache[decodeURIComponent(path.slice(1))] = data;
+    dirty = true;
+  });
+  fetch(`${DB}/gameData/${GAME_ID}/world.json`).then(r => r.json()).then(d => {
+    if (d) { worldEvents = d.events || {}; worldWonders = d.wonders || {}; updateAlertBar(); dirty = true; }
+  }).catch(()=>{});
+  const handleWorld = e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/") { worldEvents = data?.events || {}; worldWonders = data?.wonders || {}; }
+    else if (path === "/events" && data) { Object.assign(worldEvents, data); }
+    else if (path === "/wonders" && data) { Object.assign(worldWonders, data); }
+    else if (path.startsWith("/events/")) { const k = path.slice(8); if (data) worldEvents[k] = data; else delete worldEvents[k]; }
+    else if (path.startsWith("/wonders/")) { const k = path.slice(9); if (data) worldWonders[k] = data; else delete worldWonders[k]; }
+    updateAlertBar(); dirty = true;
+  };
+  const wES = newES(`${DB}/gameData/${GAME_ID}/world.json`);
+  wES.addEventListener("put", handleWorld);
+  wES.addEventListener("patch", handleWorld);
+  $("status").textContent = "🟢 ONLINE";
+}
+function goHome() {
+  if (core) { scale = 20; centerOn(core.x + .5, core.y + .5); return; }
+  scale = Math.min(W, H) / N * 1.05; centerOn(N / 2, N / 2);
+}
+
+// ===== クラフト・兵器 =====
+const CRAFT_ITEMS = [
+  { id:"missile", fac:FAC_WEAPON, facName:"🏭兵器工場", name:"戦略ミサイル", icon:"🚀", cost:{ c:2, w:4,  p:14, m:8  }, desc:"ランダム20箇所一斉爆撃" },
+  { id:"bomb",    fac:FAC_WEAPON, facName:"🏭兵器工場", name:"メガボム",     icon:"💣", cost:{ c:3, w:0,  p:16, m:10 }, desc:"指定中心5×5マス広範囲爆破" },
+  { id:"bunker",  fac:FAC_WEAPON, facName:"🏭兵器工場", name:"バンカーバスター", icon:"🎯", cost:{ c:3, w:0,  p:12, m:14 }, desc:"【バリア・要塞貫通】指定1マス確実に破壊" },
+  { id:"emp",     fac:FAC_TECH,   facName:"🔬先端研",   name:"EMP照射器",    icon:"⚡", cost:{ c:5, w:10, p:25, m:45 }, desc:"相手のバリアを5分間完全無力化(4重ね以上に対策必須)" },
+  { id:"shield",  fac:FAC_TECH,   facName:"🔬先端研",   name:"ナノシールド", icon:"🛡️", cost:{ c:3, w:8,  p:0,  m:12 }, desc:"12時間有効・毎時+3回防御枠追加(重ね買い無制限)" },
+  { id:"laser",   fac:FAC_TECH,   facName:"🔬先端研",   name:"衛星レーザー", icon:"🛰️", cost:{ c:4, w:0,  p:14, m:18 }, desc:"選択行を全域照射(最大25マス)" },
+  { id:"ticket",  fac:FAC_ENG,    facName:"🏗️工兵",     name:"空挺ビーコン", icon:"🎫", cost:{ c:20, w:60, p:30, m:20 }, desc:"好きな空き地へ降下占領" },
+  { id:"boost",   fac:FAC_ENG,    facName:"🏗️工兵",     name:"超ブースト",   icon:"⚡", cost:{ c:30, w:50, p:50, m:50 }, desc:"24時間全資源・コイン産出2倍" }
+];
+function canCraft(it) {
+  if (busy || myName === "Guest" || !myFac(it.fac) || (inv[it.id] || 0) >= 5) return false;
+  let mult = ideology === "engineer" ? 0.75 : 1.0;
+  return coins >= Math.floor(it.cost.c * mult) && wood >= Math.floor(it.cost.w * mult) && powder >= Math.floor(it.cost.p * mult) && metal >= Math.floor(it.cost.m * mult);
+}
+function renderCraftModal() {
+  const shActive = shieldUntil > srvNow() && empUntil < srvNow();
+  const curHr = Math.floor(srvNow() / HOUR);
+  const used = shieldUsedHr === curHr ? shieldUsedCnt : 0;
+  const maxDef = shieldStacks * 3;
+  $("craftCoins").textContent = `🪙${coins} 🪵${wood} 💥${powder} ⚙️${metal}`;
+  const facW = myFac(FAC_WEAPON), facT = myFac(FAC_TECH), facE = myFac(FAC_ENG);
+  $("craftFacStatus").innerHTML = `3×3工場: <span class="tag ${facW?'ok':'no'}">🏭兵器:${facW?'稼':'未'}</span> <span class="tag ${facT?'ok':'no'}">🔬先端:${facT?'稼':'未'}</span> <span class="tag ${facE?'ok':'no'}">🏗️工兵:${facE?'稼':'未'}</span> | 🛡️バリア: <b>${shActive ? `${shieldStacks}重ね(毎時残り ${maxDef - used}/${maxDef}回)` : "無効"}</b> ${empUntil > srvNow() ? `<span class="tag no">⚡EMP無力化中(${fmtM(empUntil - srvNow())})</span>`:""}`;
+  let mult = ideology === "engineer" ? 0.75 : 1.0;
+  $("craftList").innerHTML = CRAFT_ITEMS.map(it => {
+    const ok = canCraft(it), hasF = myFac(it.fac), cnt = inv[it.id] || 0;
+    const reqStr = `🪙${Math.floor(it.cost.c*mult)}` + (it.cost.w?` 🪵${Math.floor(it.cost.w*mult)}`:"") + (it.cost.p?` 💥${Math.floor(it.cost.p*mult)}`:"") + (it.cost.m?` ⚙️${Math.floor(it.cost.m*mult)}`:"");
+    return `<div class="crow"><div class="ci"><div class="ct">${it.icon} <b>${it.name}</b> <small style="color:var(--gold)">(${cnt}/5)</small></div><div class="req">必要: <b>${reqStr}</b> | <span style="color:${hasF?'#39ff14':'#ff4d6d'}">${it.facName}</span></div><div class="cd">${it.desc}</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="cbtn gold" onclick="craftItem('${it.id}')" ${ok?'':'disabled'}>製造</button><button class="cbtn mag" onclick="useItem('${it.id}')" ${cnt>0?'':'disabled'}>発動</button></div></div>`;
+  }).join("");
+}
+window.craftItem = id => {
+  const it = CRAFT_ITEMS.find(v => v.id === id); if (!canCraft(it)) return;
+  let mult = ideology === "engineer" ? 0.75 : 1.0;
+  coins -= Math.floor(it.cost.c * mult); wood -= Math.floor(it.cost.w * mult); powder -= Math.floor(it.cost.p * mult); metal -= Math.floor(it.cost.m * mult);
+  inv[id] = (inv[id] || 0) + 1; savePlayer(); updateInfo(); renderCraftModal(); toast(`🔨 ${it.icon}${it.name} を製造完了！`);
+};
+
+function hitTarget(x, y, bypassShield = false) {
+  const i = y * N + x, o = grid[i], oName = names[o];
+  if (!o || o === myId || isAlly(oName) || isProtected(oName)) return false;
+  const targetP = allPlayersCache[oName];
+  const curHr = Math.floor(srvNow() / HOUR);
+  const tUntil = targetP?.shieldUntil || 0, tEmp = targetP?.empUntil || 0, tStacks = targetP?.shieldStacks || 0;
+  const tUsed = (targetP?.shieldUsedHr === curHr ? targetP?.shieldUsedCnt : 0) || 0;
+  const maxDef = tStacks * 3;
+
+  if (!bypassShield && tUntil > srvNow() && tEmp < srvNow() && tUsed < maxDef) {
+    const nxtUsed = tUsed + 1;
+    targetP.shieldUsedHr = curHr; targetP.shieldUsedCnt = nxtUsed;
+    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oName)}/shieldUsedHr.json`, { method:"PUT", body:JSON.stringify(curHr) }).catch(()=>{});
+    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oName)}/shieldUsedCnt.json`, { method:"PUT", body:JSON.stringify(nxtUsed) }).catch(()=>{});
+    return "blocked";
+  }
+  if (cellMods.has(i)) { cellMods.delete(i); fetch(modUrl(toKey(x, y)), { method:"DELETE" }).catch(()=>{}); }
+  setXY(x, y, null);
+  fetch(cellUrl(toKey(x, y)), { method:"DELETE" }).catch(()=>{});
+  checkWonderDisruption(x, y);
+  checkVassalize(oName);
+  return "destroyed";
+}
+
+window.useItem = async id => {
+  if (busy || (inv[id] || 0) <= 0) return;
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  $("craftModal").classList.remove("show");
+  if (id === "shield") {
+    inv.shield--; shieldUntil = Math.max(srvNow(), shieldUntil) + 12 * HOUR; shieldStacks++;
+    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}/shieldUntil.json`, { method:"PUT", body:JSON.stringify(shieldUntil) }).catch(()=>{});
+    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(myName)}/shieldStacks.json`, { method:"PUT", body:JSON.stringify(shieldStacks) }).catch(()=>{});
+    savePlayer(); updateInfo(); toast(`🛡️ ナノシールド強化！現在 ${shieldStacks}重ね (毎時${shieldStacks * 3}回防御・12時間)`);
+  } else if (id === "emp") {
+    if (!selected || !ownerAt(selected.x, selected.y)) return toast("⚡ バリアを解除する敵マスを選択してください");
+    const targetName = names[ownerAt(selected.x, selected.y)];
+    inv.emp--; savePlayer();
+    const eUntil = srvNow() + 5 * 60000;
+    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(targetName)}/empUntil.json`, { method:"PUT", body:JSON.stringify(eUntil) }).catch(()=>{});
+    toast(`⚡ EMP照射！${targetName} のバリアを5分間完全シャットダウン！`);
+  } else if (id === "bunker") {
+    if (!selected || !ownerAt(selected.x, selected.y)) return toast("🎯 貫通破壊する敵マスを選択してください");
+    inv.bunker--; savePlayer();
+    const res = hitTarget(selected.x, selected.y, true);
+    toast(res === "destroyed" ? "🎯 バンカーバスター貫通！敵マスを完全粉砕！" : "破壊できませんでした");
+  } else if (id === "boost") {
+    inv.boost--; boostUntil = Math.max(srvNow(), boostUntil) + 24 * HOUR; savePlayer(); toast("⚡ 超ブースト発動(24時間)");
+  } else if (id === "ticket") {
+    beaconArmed = !beaconArmed; toast(beaconArmed ? "🎫 空挺降下待機中: 空きマスを選択" : "🎫 解除");
+  } else if (id === "missile") {
+    const targets = []; for (let i = 0; i < grid.length; i++) { const o = names[grid[i]]; if (grid[i] && grid[i] !== myId && !isAlly(o) && !isProtected(o)) targets.push(i); }
+    if (!targets.length) { toast("攻撃可能な敵マスがありません"); return; }
+    targets.sort(() => Math.random() - 0.5); inv.missile--; savePlayer();
+    let des = 0, blk = 0;
+    for (const t of targets.slice(0, 20)) { const r = hitTarget(t % N, (t / N) | 0, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
+    toast(`🚀 戦略ミサイル着弾！破壊: ${des} / 敵シールド防護: ${blk}`);
+  } else if (id === "bomb") {
+    if (!selected) return toast("💣 爆撃中心マスを選択してください");
+    inv.bomb--; savePlayer();
+    let des = 0, blk = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const nx = selected.x + dx, ny = selected.y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const r = hitTarget(nx, ny, false); if (r === "destroyed") des++; else if (r === "blocked") blk++;
+    }
+    toast(`💣 メガボム炸裂！破壊: ${des} / 敵シールド防護: ${blk}`);
+  } else if (id === "laser") {
+    if (!selected) return toast("🛰️ レーザー行のマスを選択してください");
+    inv.laser--; savePlayer(); const y = selected.y;
+    let des = 0, blk = 0;
+    for (let x = 0; x < N; x++) { const r = hitTarget(x, y, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
+    toast(`🛰️ 衛星レーザー照射！破壊: ${des} / 敵シールド防護: ${blk}`);
+  }
+  dirty = true; updateInfo();
+};
+
+// ===== 貿易マーケット =====
+const TRADEABLE = [
+  { id:"wood", name:"木材", icon:"🪵", isRes:true }, { id:"powder", name:"火薬", icon:"💥", isRes:true }, { id:"metal", name:"金属", icon:"⚙️", isRes:true },
+  { id:"missile", name:"ミサイル", icon:"🚀", isRes:false }, { id:"bomb", name:"メガボム", icon:"💣", isRes:false }, { id:"bunker", name:"バンカーバスター", icon:"🎯", isRes:false },
+  { id:"emp", name:"EMP照射器", icon:"⚡", isRes:false }, { id:"shield", name:"ナノシールド", icon:"🛡️", isRes:false }, { id:"laser", name:"衛星レーザー", icon:"🛰️", isRes:false }, { id:"ticket", name:"空挺ビーコン", icon:"🎫", isRes:false }, { id:"boost", name:"超ブースト", icon:"⚡", isRes:false }
+];
+let marketTab = "public", tradeBusy = false;
+function getStock(k, isR) { return isR ? (k==="wood"?wood:k==="powder"?powder:metal) : (inv[k]||0); }
+function modifyStock(k, isR, d) {
+  if (isR) { if(k==="wood") wood=Math.max(0,wood+d); else if(k==="powder") powder=Math.max(0,powder+d); else metal=Math.max(0,metal+d); }
+  else inv[k] = Math.max(0, (inv[k]||0)+d);
+}
+function openMarket() {
+  $("tradeItemSelect").innerHTML = TRADEABLE.map(t => `<option value="${t.id}">${t.icon} ${t.name} (所持:${getStock(t.id, t.isRes)})</option>`).join("");
+  renderMarketList(); $("marketModal").classList.add("show");
+}
+async function renderMarketList() {
+  const res = await fetch(`${marketUrl}.json`).then(r => r.json()).catch(() => null) || {};
+  const entries = Object.entries(res);
+  let bHtml = "", sHtml = "";
+  for (const [id, it] of entries) {
+    if (marketTab === "public" && it.allianceId) continue;
+    if (marketTab === "ally" && (!it.allianceId || !myAlliance || it.allianceId !== myAlliance.id)) continue;
+    const isMine = it.seller === myName;
+    bHtml += `<div class="crow"><div class="ci"><div class="ct">${it.icon} <b>${it.name}</b> ×${it.qty} ${it.allianceId?'<span class="tag ally">🤝限定</span>':''}</div><div class="req">価格: <b style="color:var(--gold)">🪙${it.price}</b> | 出品者: ${esc(it.seller)}</div></div><div>${isMine ? `<button class="cbtn" style="border-color:#ff4d6d;color:#ff4d6d" onclick="cancelTrade('${id}')">取消</button>` : `<button class="cbtn gold" onclick="buyTrade('${id}')" ${coins>=it.price?'':'disabled'}>購入</button>`}</div></div>`;
+  }
+  $("marketList").innerHTML = bHtml || `<div style="color:var(--sub);padding:10px">商品がありません</div>`;
+  for (const [id, it] of entries.filter(e => e[1].seller === myName)) {
+    sHtml += `<div class="crow"><div class="ci"><div class="ct">${it.icon} ${it.name} ×${it.qty} (🪙${it.price})</div></div><button class="cbtn" style="border-color:#ff4d6d;color:#ff4d6d" onclick="cancelTrade('${id}')">回収</button></div>`;
+  }
+  $("myTradeList").innerHTML = sHtml || `<div style="color:var(--sub);padding:6px">出品中の商品はありません</div>`;
+}
+$("btnPostTrade").onclick = async () => {
+  if (tradeBusy || myName === "Guest") return;
+  const selId = $("tradeItemSelect").value, itInfo = TRADEABLE.find(v => v.id === selId);
+  const qty = parseInt($("tradeQty").value) || 1, price = Math.max(0, parseInt($("tradePrice").value) || 0), isAllyOnly = $("tradeIsAllyOnly").checked;
+  if (isAllyOnly && !myAlliance) return toast("同盟限定出品には同盟が必要です");
+  if (qty > getStock(selId, itInfo.isRes) || qty <= 0) return toast("数量不足");
+  tradeBusy = true;
+  try {
+    modifyStock(selId, itInfo.isRes, -qty); savePlayer(); updateInfo();
+    await fetch(`${marketUrl}.json`, { method:"POST", body:JSON.stringify({ seller:myName, allianceId:isAllyOnly?myAlliance.id:null, itemKey:selId, name:itInfo.name, icon:itInfo.icon, isRes:itInfo.isRes, qty, price, t:srvNow() }) });
+    toast(`📦 ${itInfo.name} ×${qty} を出品しました！`); openMarket();
+  } finally { tradeBusy = false; }
+};
+window.buyTrade = async tradeId => {
+  if (tradeBusy || myName === "Guest") return;
+  tradeBusy = true;
+  try {
+    const it = await fetch(`${marketUrl}/${tradeId}.json`).then(r => r.json()).catch(() => null);
+    if (!it) return renderMarketList();
+    if (coins < it.price) return toast("🪙 コイン不足");
+    await fetch(`${marketUrl}/${tradeId}.json`, { method:"DELETE" });
+    coins -= it.price; modifyStock(it.itemKey, it.isRes, it.qty); savePlayer(); updateInfo();
+    if (it.price > 0) fetch(`${DB}/gameData/${GAME_ID}/mailbox/${encodeURIComponent(it.seller)}.json`, { method:"POST", body:JSON.stringify({ price:it.price, buyer:myName, item:it.name, t:srvNow() }) }).catch(()=>{});
+    toast(`🛒 ${it.name} ×${it.qty} を購入しました！`); renderMarketList();
+  } finally { tradeBusy = false; }
+};
+window.cancelTrade = async tradeId => {
+  if (tradeBusy) return;
+  tradeBusy = true;
+  try {
+    const it = await fetch(`${marketUrl}/${tradeId}.json`).then(r => r.json()).catch(() => null);
+    if (it && it.seller === myName) {
+      await fetch(`${marketUrl}/${tradeId}.json`, { method:"DELETE" });
+      modifyStock(it.itemKey, it.isRes, it.qty); savePlayer(); updateInfo();
+      toast(`📦 ${it.name} を回収しました`); openMarket();
+    }
+  } finally { tradeBusy = false; }
+};
+
+// ===== 同盟管理 =====
+async function syncAllianceAndVassal() {
+  if (myName === "Guest") return;
+  try {
+    const allies = await fetch(`${allianceUrl}.json`).then(r => r.json()).catch(() => null) || {};
+    myAlliance = null;
+    for (const id in allies) if (allies[id]?.members?.includes(myName)) { myAlliance = Object.assign({ id }, allies[id]); break; }
+    const invs = await fetch(`${inviteUrl}.json`).then(r => r.json()).catch(() => null);
+    const cnt = invs ? Object.keys(invs).length : 0;
+    $("allyBadge").textContent = cnt; $("allyBadge").style.display = cnt > 0 ? "flex" : "none";
+    const vassals = await fetch(`${vassalUrl}.json`).then(r => r.json()).catch(() => null) || {};
+    myOverlord = vassals[myName]?.overlord || null;
+    if (myOverlord && loadedOnce && counts[idMap.get(myOverlord) || 0] === 0) {
+      await fetch(`${vassalUrl}/${encodeURIComponent(myName)}.json`, { method:"DELETE" }).catch(()=>{});
+      myOverlord = null; toast("🕊️ 宗主国が滅亡したため植民地から解放されました！");
+    }
+    myVassals = Object.keys(vassals).filter(k => vassals[k]?.overlord === myName);
+  } catch (_) {}
+}
+async function renderAllianceView() {
+  if (myName === "Guest") {
+    $("allyStatusTag").textContent = "観戦中";
+    $("allianceView").innerHTML = `<div style="padding:12px;color:var(--sub)">ログインすると同盟機能を利用できます。</div>`;
+    return;
+  }
+  $("allianceView").innerHTML = `<div style="padding:12px;color:var(--sub)">⏳ 読み込み中…</div>`;
+  await syncAllianceAndVassal();
+  $("allyStatusTag").textContent = myAlliance ? `所属: ${myAlliance.name}` : "未所属";
+  let html = "";
+  if (myAlliance) {
+    const mems = myAlliance.members || [];
+    html += `
+      <div class="custom-form">
+        <div style="font-weight:800;color:var(--cyan);font-size:14px;margin-bottom:6px">🤝 ${esc(myAlliance.name)}</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-bottom:6px">同盟メンバー (最大3人):</div>
+        <div>${mems.map(m => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span class="swatch" style="background:${cols(m).fill}"></span><b>${esc(m)}</b> ${m===myName?'(あなた)':''}</div>`).join("")}</div>
+        ${mems.length < 3 ? `<div class="f-row" style="margin-top:10px"><input type="text" id="inviteUser" placeholder="招待するプレイヤー名" style="flex:1"><button onclick="inviteToAlliance()">招待状送信</button></div>` : '<div style="color:var(--gold);font-size:11.5px;margin-top:6px">※満員(3人)です</div>'}
+        <button style="background:transparent;border:1px solid #ff4d6d;color:#ff4d6d;margin-top:10px" onclick="leaveAlliance()">同盟脱退</button>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="custom-form">
+        <div style="font-weight:800;color:var(--gold);margin-bottom:6px">新規同盟結成 (コスト: 🪙${ALLIANCE_COST})</div>
+        <div class="f-row"><input type="text" id="newAllyName" placeholder="同盟名" style="flex:1"><button onclick="createAlliance()" ${coins>=ALLIANCE_COST?'':'disabled'}>結成</button></div>
+      </div>
+    `;
+    const invs = await fetch(`${inviteUrl}.json`).then(r => r.json()).catch(() => null);
+    if (invs && Object.keys(invs).length) {
+      html += `<div style="font-weight:800;margin-bottom:6px;color:var(--cyan)">📩 届いている招待:</div>`;
+      for (const iId in invs) {
+        const inv = invs[iId];
+        html += `<div class="crow"><div class="ci"><div class="ct">🤝 <b>${esc(inv.allianceName)}</b></div><div class="req">招待者: ${esc(inv.from)} (加入: 🪙${ALLIANCE_COST})</div></div><div style="display:flex;gap:4px"><button class="cbtn gold" onclick="acceptInvite('${iId}','${inv.allianceId}')" ${coins>=ALLIANCE_COST?'':'disabled'}>加入</button><button class="cbtn" onclick="rejectInvite('${iId}')">拒否</button></div></div>`;
+      }
+    }
+  }
+  if (myOverlord) {
+    const canReb = srvNow() >= rebelCD;
+    html += `<div class="custom-form" style="border-color:#ff5277;margin-top:8px"><div style="color:#ff5277;font-weight:800">⚠️ 宗主国: ${esc(myOverlord)} に服従中 (毎時50%上納)</div><div style="font-size:11px;margin:4px 0">独立条件: 宗主国を5マス奪還 または 30マス回復</div><button onclick="startRebellion()" ${canReb?"":"disabled"} style="background:#ff2d55;color:#fff">${rebelUntil>srvNow()?`🔥 独立戦争中(${rebelHits}/5マス)`:(canReb?"🔥 独立戦争を宣言(1時間限定)":"CT中 "+fmt(rebelCD-srvNow()))}</button></div>`;
+  }
+  if (myVassals.length) html += `<div style="color:var(--gold);font-weight:800;margin-top:8px">👑 支配下の植民地: ${myVassals.map(esc).join(", ")}</div>`;
+  $("allianceView").innerHTML = html;
+}
+window.createAlliance = async () => {
+  const n = ($("newAllyName").value || "").trim(); if (!n) return toast("同盟名を入力してください");
+  if (coins < ALLIANCE_COST) return toast("コイン不足");
+  coins -= ALLIANCE_COST; savePlayer(); updateInfo();
+  const aId = "ally_" + Math.random().toString(36).slice(2, 8);
+  await fetch(`${allianceUrl}/${aId}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ name:n, members:[myName], t:srvNow() }) });
+  toast(`🤝 同盟「${n}」を結成！`); renderAllianceView();
+};
+window.inviteToAlliance = async () => {
+  const tgt = ($("inviteUser").value || "").trim();
+  if (!tgt || tgt === myName || !myAlliance || myAlliance.members.length >= 3) return toast("招待できません");
+  await fetch(`${DB}/gameData/${GAME_ID}/allianceInvites/${encodeURIComponent(tgt)}.json`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ allianceId:myAlliance.id, allianceName:myAlliance.name, from:myName, t:srvNow() }) });
+  toast(`📩 ${tgt} へ招待状を送りました`); $("inviteUser").value = "";
+};
+window.acceptInvite = async (iId, aId) => {
+  if (coins < ALLIANCE_COST) return toast("コイン不足");
+  const a = await fetch(`${allianceUrl}/${aId}.json`).then(r => r.json()).catch(() => null);
+  if (!a || (a.members || []).length >= 3) return toast("同盟は満員か解散されました");
+  coins -= ALLIANCE_COST; a.members.push(myName);
+  await fetch(`${allianceUrl}/${aId}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(a) });
+  await fetch(`${inviteUrl}/${iId}.json`, { method:"DELETE" });
+  savePlayer(); updateInfo(); toast(`🤝 同盟「${a.name}」に加入！`); renderAllianceView();
+};
+window.rejectInvite = async iId => { await fetch(`${inviteUrl}/${iId}.json`, { method:"DELETE" }); renderAllianceView(); };
+window.startRebellion = () => {
+  if (!myOverlord || srvNow() < rebelCD) return;
+  rebelUntil = srvNow() + HOUR; rebelCD = srvNow() + 6 * HOUR; rebelHits = 0;
+  savePlayer(); renderAllianceView(); updateInfo();
+  toast("🔥 独立戦争を宣言！1時間だけ宗主国へコスト半額で反撃可能！");
+};
+window.leaveAlliance = async () => {
+  if (!myAlliance) return;
+  const aId = myAlliance.id;
+  const a = await fetch(`${allianceUrl}/${aId}.json`).then(r => r.json()).catch(() => null);
+  if (a) {
+    const mems = (a.members || []).filter(m => m !== myName);
+    if (mems.length) await fetch(`${allianceUrl}/${aId}/members.json`, { method:"PUT", body:JSON.stringify(mems) });
+    else await fetch(`${allianceUrl}/${aId}.json`, { method:"DELETE" });
+  }
+  myAlliance = null; toast("同盟を脱退しました"); renderAllianceView();
+};
+
+async function checkVassalize(vic) {
+  if (!vic || vic === myName || isAlly(vic)) return;
+  const vId = idMap.get(vic);
+  if (vId && counts[vId] === 1) {
+    await fetch(`${vassalUrl}/${encodeURIComponent(vic)}.json`, { method:"PUT", body:JSON.stringify({ overlord:myName, t:srvNow() }) });
+    toast(`⚔️ ${vic} を植民地化！毎時50%の資源を上納させます！`); syncAllianceAndVassal();
+  }
+}
+async function checkMailbox() {
+  if (myName === "Guest") return;
+  const list = await fetch(`${mailboxUrl}.json`).then(r => r.json()).catch(() => null);
+  if (!list) return;
+  let earned = 0, msgs = [];
+  for (const k in list) {
+    const it = list[k];
+    await fetch(`${mailboxUrl}/${k}.json`, { method:"DELETE" });
+    if (it.type === "tribute") { coins += it.c||0; wood += it.w||0; powder += it.p||0; metal += it.m||0; msgs.push(`👑 植民地(${it.from})上納: 🪙+${it.c}`); }
+    else if (it.price) { earned += it.price; }
+  }
+  if (earned > 0) toast(`🎉 商品が売れました！ +${earned}🪙`);
+  if (msgs.length) toast(msgs.join("\n"));
+  if (earned > 0 || msgs.length) { savePlayer(); updateInfo(); }
+}
+
+// ===== ボタンバインド =====
+$("btnHome").onclick = goHome;
+$("legendBtn").onclick = () => $("legend").classList.toggle("show");
+$("btnIdeo").onclick = () => { renderIdeoModal(); $("ideoModal").classList.add("show"); };
+$("ideoClose").onclick = () => $("ideoModal").classList.remove("show");
+$("btnVictory").onclick = () => { renderVictoryModal(); $("victoryModal").classList.add("show"); };
+$("victoryClose").onclick = () => $("victoryModal").classList.remove("show");
+$("btnAlliance").onclick = () => { renderAllianceView(); $("allianceModal").classList.add("show"); };
+$("allianceClose").onclick = () => $("allianceModal").classList.remove("show");
+$("btnMarket").onclick = openMarket;
+$("marketClose").onclick = () => $("marketModal").classList.remove("show");
+$("mTabBuy").onclick = () => { marketTab="public"; $("mTabBuy").classList.add("on"); $("mTabAllyBuy").classList.remove("on"); $("mTabSell").classList.remove("on"); $("buyView").style.display="block"; $("sellView").style.display="none"; renderMarketList(); };
+$("mTabAllyBuy").onclick = () => { marketTab="ally"; $("mTabAllyBuy").classList.add("on"); $("mTabBuy").classList.remove("on"); $("mTabSell").classList.remove("on"); $("buyView").style.display="block"; $("sellView").style.display="none"; renderMarketList(); };
+$("mTabSell").onclick = () => { $("mTabSell").classList.add("on"); $("mTabBuy").classList.remove("on"); $("mTabAllyBuy").classList.remove("on"); $("sellView").style.display="block"; $("buyView").style.display="none"; renderMarketList(); };
+$("btnCraft").onclick = () => { renderCraftModal(); $("craftModal").classList.add("show"); };
+$("craftClose").onclick = () => $("craftModal").classList.remove("show");
+$("btnHelp").onclick = () => $("helpModal").classList.add("show");
+$("helpClose").onclick = () => $("helpModal").classList.remove("show");
+$("merchantClose").onclick = () => $("merchantModal").classList.remove("show");
+$("btnRank").onclick = () => { $("rank").classList.toggle("show"); renderRank(); };
+$("rankClose").onclick = () => $("rank").classList.remove("show");
+
+document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) m.classList.remove("show"); }));
+let rankTab = "live";
+function setRankTabs() {
+  $("tabLive").classList.toggle("on", rankTab === "live");
+  $("tabBest").classList.toggle("on", rankTab === "best");
+  $("tabCyber").classList.toggle("on", rankTab === "cyber");
+}
+$("tabLive").onclick = () => { rankTab = "live"; setRankTabs(); renderRank(); };
+$("tabBest").onclick = () => { rankTab = "best"; setRankTabs(); renderRank(); };
+$("tabCyber").onclick = () => { rankTab = "cyber"; setRankTabs(); renderRank(); };
+async function renderRank() {
+  const el = $("rankList");
+  if (rankTab === "cyber" && ideology === "cyber") {
+    el.innerHTML = Object.entries(allPlayersCache).map(([k, p]) => `<li><b>${esc(decodeURIComponent(k))}</b>: 🪙${p.coins||0} 🪵${p.res?.wood||0} 💥${p.res?.powder||0} ⚙️${p.res?.metal||0}</li>`).join("");
+  } else if (rankTab === "best") {
+    const d = await fetch(`${DB}/gameData/${GAME_ID}/ranking.json`).then(r => r.json()).catch(() => null) || {};
+    const rows = Object.entries(d).map(([k, v]) => [decodeURIComponent(k), v.score || 0]).sort((a, b) => b[1] - a[1]);
+    el.innerHTML = rows.slice(0, 20).map((r, i) => `<li class="${r[0]===myName?"me":""}"><span class="n">${i+1}</span><span class="dot" style="background:${cols(r[0]).fill}"></span><span class="nm">${esc(r[0])}</span><b>${r[1]}</b></li>`).join("") || "<li>記録なし</li>";
+  } else {
+    const rows = []; for (let i = 1; i < counts.length; i++) if (counts[i] > 0) rows.push([names[i], counts[i]]);
+    rows.sort((a, b) => b[1] - a[1]);
+    el.innerHTML = rows.slice(0, 20).map((r, i) => `<li class="${r[0]===myName?"me":""}"><span class="n">${i+1}</span><span class="dot" style="background:${cols(r[0]).fill}"></span><span class="nm">${esc(r[0])}</span><b>${r[1]}</b></li>`).join("");
+  }
+}
+
+// 管理者「のむのむ」専用（テスト用時間解放・イベント発生・リセット）
+if (myName === "のむのむ") {
+  const b1 = document.createElement("button"); b1.className = "ib neon gold"; b1.textContent = "🛠️"; b1.title = "管理者メニュー";
+  b1.onclick = async () => {
+    const cmd = prompt("【管理者メニュー】\n1: 時間停止バイパスON/OFF\n2: ☄️隕石落下イベント発生(3h)\n3: 🌫️濃霧イベント発生(2h)\n4: ⚠️全データ完全リセット\n5: 🎰ギャンブル発生(1h)\n6: 🎭仮面舞踏会発生(2h)");
+    if (cmd === "5") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/gamble.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + HOUR }) }); toast("🎰 ギャンブル・アワー開始！"); return; }
+    if (cmd === "6") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/mask.json`, { method:"PUT", body:JSON.stringify({ until:srvNow() + 2 * HOUR }) }); toast("🎭 仮面舞踏会開始！"); return; }
+    if (cmd === "1") { adminBypassTime = !adminBypassTime; toast("時間停止バイパス: " + adminBypassTime); updateInfo(); }
+    else if (cmd === "2") { const mx = 20 + Math.floor(Math.random()*160), my = 20 + Math.floor(Math.random()*160); await fetch(`${DB}/gameData/${GAME_ID}/world/events/meteor.json`, { method:"PUT", body:JSON.stringify({ x:mx, y:my, until:srvNow()+3*HOUR }) }); toast(`☄️ (${mx},${my})に隕石落下！`); }
+    else if (cmd === "3") { await fetch(`${DB}/gameData/${GAME_ID}/world/events/fog.json`, { method:"PUT", body:JSON.stringify({ until:srvNow()+2*HOUR }) }); toast("🌫️ 全域濃霧発生！"); }
+    else if (cmd === "4" && confirm("本当に全初期化しますか？")) { await fetch(`${DB}/gameData/${GAME_ID}.json`, { method:"DELETE" }); location.reload(); }
+  };
+  $("top").appendChild(b1);
+}
+
+// 起動
+resize(); centerOn(N / 2, N / 2);
+loadPids().finally(connect);
+loadPlayer().then(() => { syncAllianceAndVassal(); checkMailbox(); });
+setInterval(() => { processHourlyAndDecay(); }, 5000);
+async function autoEventTick() {
+  if (myName === "Guest" || !timeReady || !loadedOnce || !isActiveTime()) return;
+  const now = srvNow(), hr = new Date(now).getHours();
+  if (hr >= 14) return; // 3h継続イベントが稼働時間内に収まる時間帯のみ
+  if (["meteor", "fog", "gamble", "mask"].some(k => isEvtOn(k))) return;
+  const url = `${DB}/gameData/${GAME_ID}/world/eventNext.json`;
+  try {
+    const r = await fetch(url, { headers:{"X-Firebase-ETag":"true"} });
+    const etag = r.headers.get("ETag"), nextAt = await r.json();
+    if (typeof nextAt === "number" && nextAt > now) return;
+    const res = await fetch(url, { method:"PUT", headers:{"Content-Type":"application/json", "if-match":etag}, body:JSON.stringify(now + (2 + Math.random() * 2) * HOUR) });
+    if (!res.ok) return; // 他クライアントが先に確保
+    const roll = Math.random();
+    if (roll < 0.25) {
+      await fetch(`${DB}/gameData/${GAME_ID}/world/events/gamble.json`, { method:"PUT", body:JSON.stringify({ until:now + 1 * HOUR }) });
+    } else if (roll < 0.5) {
+      await fetch(`${DB}/gameData/${GAME_ID}/world/events/mask.json`, { method:"PUT", body:JSON.stringify({ until:now + 2 * HOUR }) });
+    } else if (roll < 0.75) {
+      const mx = 20 + Math.floor(Math.random() * 160), my = 20 + Math.floor(Math.random() * 160);
+      await fetch(`${DB}/gameData/${GAME_ID}/world/events/meteor.json`, { method:"PUT", body:JSON.stringify({ x:mx, y:my, until:now + 3 * HOUR }) });
+    } else {
+      await fetch(`${DB}/gameData/${GAME_ID}/world/events/fog.json`, { method:"PUT", body:JSON.stringify({ until:now + 2 * HOUR }) });
+    }
+  } catch (_) {}
+}
+setInterval(() => { updateInfo(); }, 1000);
+setInterval(() => { syncAllianceAndVassal(); checkMailbox(); }, 30000);
+setInterval(() => { autoEventTick(); }, 45000);
+</script>
+</body>
+</html>
