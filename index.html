@@ -1554,7 +1554,6 @@ cv.addEventListener("wheel", e => { e.preventDefault(); const wx = (e.offsetX - 
 function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3200); }
 const fmt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(v => String(v).padStart(2, "0")).join(":"); };
 const fmtM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
-const fmtHM = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}時間${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}分`; };
 function nextDailyReset(ts) {
   const next = new Date(ts);
   next.setHours(12, 0, 0, 0);
@@ -1573,7 +1572,7 @@ function updateInfo() {
   $("uName").textContent = `${myName}${ideology ? " " + IDEOLOGIES[ideology].name.split(" ")[0] : ""}`;
   const now = srvNow();
   const remH = Math.max(0, nextHourlyRewardAt(now) - now);
-  $("nextH").textContent = `⏱ ${fmtHM(remH)} (+${inc.c}🪙)`;
+  $("nextH").textContent = `⏱ ${fmt(remH)} (+${inc.c}🪙)`;
   const dailyIdx = Math.floor((now - 12 * HOUR) / DAY);
   $("dailyTimer").textContent = fmt(nextDailyReset(now) - now);
   $("dailyStatus").textContent = lastDay < dailyIdx && isActiveTime(now) ? "受取可能" : "次回配布まで";
