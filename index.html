@@ -720,6 +720,7 @@ async function loadPlayer() {
   for (const k in inv) inv[k] = p.items?.[k] || 0;
   playerLoaded = true;
   recalcSupply();
+  if (loadedOnce) goHome();
   if (!ideology && myName !== "Guest") setTimeout(() => { renderIdeoModal(); $("ideoModal").classList.add("show"); }, 600);
   updateInfo();
 }
@@ -1267,7 +1268,7 @@ function connect() {
   cES.onerror = () => { $("status").textContent = "🔴 再接続中…"; };
   cES.addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
-    if (path === "/") { grid.fill(0); counts.fill(0); if (data) for (const k in data) { const xy = parseKey(k), [o, l] = parseCell(data[k]); if (xy && o) setXY(xy[0], xy[1], o, l); } loadedOnce = true; recalcSupply(); goHome(); updateInfo(); dirty = true; $("status").textContent = "🟢 ONLINE"; }
+    if (path === "/") { grid.fill(0); counts.fill(0); if (data) for (const k in data) { const xy = parseKey(k), [o, l] = parseCell(data[k]); if (xy && o) setXY(xy[0], xy[1], o, l); } loadedOnce = true; recalcSupply(); if (playerLoaded) goHome(); else centerOn(N / 2, N / 2); updateInfo(); dirty = true; $("status").textContent = "🟢 ONLINE"; }
     else { const xy = parseKey(path.slice(1)), [o, l] = parseCell(data); if (xy) { setXY(xy[0], xy[1], o, l); scheduleRefresh(); } }
   });
   newES(`${DB}/gameData/${GAME_ID}/cellMods.json`).addEventListener("put", e => {
