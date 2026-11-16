@@ -1420,13 +1420,13 @@ function goHome() {
 // ===== クラフト・兵器 =====
 const CRAFT_ITEMS = [
   { id:"missile", fac:FAC_WEAPON, facName:"🏭兵器工場", name:"戦略ミサイル", icon:"🚀", cost:{ c:2, w:4,  p:14, m:8  }, desc:"ランダム20箇所一斉爆撃" },
-  { id:"bomb",    fac:FAC_WEAPON, facName:"🏭兵器工場", name:"メガボム",     icon:"💣", cost:{ c:3, w:0,  p:16, m:10 }, desc:"指定中心5×5マス広範囲爆破" },
-  { id:"bunker",  fac:FAC_WEAPON, facName:"🏭兵器工場", name:"バンカーバスター", icon:"🎯", cost:{ c:3, w:0,  p:12, m:14 }, desc:"【バリア・要塞貫通】指定1マス確実に破壊" },
+  { id:"bomb",    fac:FAC_WEAPON, facName:"🏭兵器工場", name:"メガボム",     icon:"💣", cost:{ c:3, w:0,  p:18, m:12 }, desc:"指定中心5×5マス広範囲爆破" },
+  { id:"bunker",  fac:FAC_WEAPON, facName:"🏭兵器工場", name:"バンカーバスター", icon:"🎯", cost:{ c:3, w:0,  p:12, m:18 }, desc:"【バリア・要塞貫通】指定1マス確実に破壊" },
   { id:"emp",     fac:FAC_TECH,   facName:"🔬先端研",   name:"EMP照射器",    icon:"⚡", cost:{ c:5, w:10, p:25, m:45 }, desc:"相手のバリアを5分間完全無力化(4重ね以上に対策必須)" },
   { id:"shield",  fac:FAC_TECH,   facName:"🔬先端研",   name:"ナノシールド", icon:"🛡️", cost:{ c:3, w:8,  p:0,  m:12 }, desc:"12時間有効・毎時+3回防御枠追加(重ね買い無制限)" },
-  { id:"laser",   fac:FAC_TECH,   facName:"🔬先端研",   name:"衛星レーザー", icon:"🛰️", cost:{ c:4, w:0,  p:14, m:18 }, desc:"選択行を全域照射(最大25マス)" },
+  { id:"laser",   fac:FAC_TECH,   facName:"🔬先端研",   name:"衛星レーザー", icon:"🛰️", cost:{ c:4, w:0,  p:16, m:22 }, desc:"選択行を全域照射(最大25マス)" },
   { id:"ticket",  fac:FAC_ENG,    facName:"🏗️工兵",     name:"空挺ビーコン", icon:"🎫", cost:{ c:20, w:60, p:30, m:20 }, desc:"好きな空き地へ降下占領" },
-  { id:"boost",   fac:FAC_ENG,    facName:"🏗️工兵",     name:"超ブースト",   icon:"⚡", cost:{ c:30, w:50, p:50, m:50 }, desc:"24時間全資源・コイン産出2倍" }
+  { id:"boost",   fac:FAC_ENG,    facName:"🏗️工兵",     name:"超ブースト",   icon:"⚡", cost:{ c:50, w:80, p:80, m:80 }, desc:"24時間全資源・コイン産出2倍" }
 ];
 function canCraft(it) {
   if (busy || myName === "Guest" || !myFac(it.fac) || (inv[it.id] || 0) >= 5) return false;
