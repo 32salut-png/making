@@ -721,11 +721,12 @@ async function loadPlayer() {
   core = p.core || null; camps = Array.isArray(p.camps) ? p.camps : [];
   protectUntil = p.protectUntil || 0; protectBroken = !!p.protectBroken;
   lastActiveTick = Math.floor((p.lastActiveTick || srvNow()) / HOUR) * HOUR; lastDay = p.day || 0;
-  if ((!p.lastActiveTick || p.lastActiveTick !== lastActiveTick) && myName !== "Guest") savePlayer();
+  const normalizeTick = !p.lastActiveTick || p.lastActiveTick !== lastActiveTick;
   skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
   capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
   for (const k in inv) inv[k] = p.items?.[k] || 0;
   playerLoaded = true;
+  if (normalizeTick && myName !== "Guest") savePlayer();
   recalcSupply();
   if (loadedOnce) goHome();
   if (!ideology && myName !== "Guest") setTimeout(() => { renderIdeoModal(); $("ideoModal").classList.add("show"); }, 600);
@@ -894,6 +895,7 @@ window.resetIdeo = () => { if (coins < 50) { toast("変更には🪙50必要で�
 
 window.triggerMainSkill = () => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  if ((skillCD.main || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.main - srvNow())})`); return; }
   $("ideoModal").classList.remove("show");
   if (ideology === "cyber") {
     const inc = myResInc();
@@ -910,6 +912,7 @@ window.triggerMainSkill = () => {
 };
 window.triggerCyberHack = () => {
   if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  if ((skillCD.counter || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.counter - srvNow())})`); return; }
   $("ideoModal").classList.remove("show"); skillMode = "cyber_hack"; updateAlertBar();
   toast("🎯 ハックする工兵の改造マス/防壁をタップしてください");
 };
@@ -917,6 +920,9 @@ window.triggerCyberHack = () => {
 // スキル着弾処理
 async function executePointSkill(x, y) {
   const mode = skillMode; skillMode = null; updateAlertBar();
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  const now = srvNow(), cdKey = mode === "cyber_hack" ? "counter" : "main";
+  if ((skillCD[cdKey] || 0) > now) { toast(`⏳ CT中です (${fmt(skillCD[cdKey] - now)})`); return; }
   if (mode === "capital") {
     if (ownerAt(x, y) !== myId) { toast("自領土の中心を選んでください"); return; }
     for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
@@ -961,6 +967,8 @@ async function executePointSkill(x, y) {
 }
 
 $("engConfirm").onclick = async () => {
+  if (!isActiveTime()) { toast("⏰ 時間停止中です"); return; }
+  if ((skillCD.main || 0) > srvNow()) { toast(`⏳ CT中です (${fmt(skillCD.main - srvNow())})`); return; }
   if (!engTargets.length) { engMode = false; $("engConfirm").style.display = "none"; updateAlertBar(); return; }
   const choice = prompt("改造タイプを番号で入力してください:\n1: 🧱防壁(通行止め)\n2: 🌲森林(木材)\n3: 🌋鉱床(火薬)\n4: ⛰️鉄鉱(金属)");
   const map = { "1":MOD_WALL, "2":MOD_WOOD, "3":MOD_POWDER, "4":MOD_METAL };
