@@ -389,6 +389,9 @@ async function ensurePidsFor(list) {
 
 const TYPE_WOOD = 1, TYPE_WARP = 2, TYPE_FORT = 3, TYPE_POWDER = 4, TYPE_METAL = 5, FAC_WEAPON = 6, FAC_TECH = 7, FAC_ENG = 8;
 const MOD_WALL = 1, MOD_CAP_COIN = 2, MOD_WOOD = 3, MOD_POWDER = 4, MOD_METAL = 5;
+const ORTHOGONAL_DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+const GUERRILLA_JUMP_DIRS = [[2,0],[-2,0],[0,2],[0,-2],[1,1],[1,-1],[-1,1],[-1,-1]];
+const GUERRILLA_SUPPLY_DIRS = ORTHOGONAL_DIRS.concat(GUERRILLA_JUMP_DIRS);
 
 const grid = new Uint16Array(N * N), lvl = new Uint8Array(N * N);
 const coinMap = new Uint8Array(N * N), spec = new Uint8Array(N * N), warpAdj = new Uint8Array(N * N);
@@ -497,9 +500,7 @@ function recalcSupply() {
   if (camps.length !== prevLen && playerLoaded) savePlayer();
   for (const cp of camps) { push(cp.x, cp.y); push(cp.x+1, cp.y); push(cp.x, cp.y+1); push(cp.x+1, cp.y+1); }
   for (let i = 0; i < grid.length; i++) if (warpAdj[i] && grid[i] === myId) push(i % N, (i / N) | 0);
-  const dirs = ideology === "guerrilla"
-    ? [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],[1,1],[1,-1],[-1,1],[-1,-1]]
-    : [[1,0],[-1,0],[0,1],[0,-1]];
+  const dirs = ideology === "guerrilla" ? GUERRILLA_SUPPLY_DIRS : ORTHOGONAL_DIRS;
   let head = 0;
   while (head < q.length) {
     const idx = q[head++], cx = idx % N, cy = (idx / N) | 0;
@@ -525,12 +526,18 @@ function isNearMilitary(x, y) {
   return false;
 }
 function nearMine(x, y) {
-  if (ownerAt(x+1,y)===myId || ownerAt(x-1,y)===myId || ownerAt(x,y+1)===myId || ownerAt(x,y-1)===myId) return true;
-  if (hasWarp && warpAdj[y * N + x]) return true;
+  const connected = (cx, cy) => {
+    if (cx < 0 || cy < 0 || cx >= N || cy >= N) return false;
+    const i = cy * N + cx;
+    return grid[i] === myId && !isolatedSet.has(i);
+  };
+  if (ORTHOGONAL_DIRS.some(([dx, dy]) => connected(x + dx, y + dy))) return true;
+  if (hasWarp && warpList.some(wi => {
+    const wx = wi % N, wy = (wi / N) | 0;
+    return connected(wx, wy) && Math.abs(wx - x) <= 1 && Math.abs(wy - y) <= 1;
+  })) return true;
   if (ideology === "guerrilla" && !isNearMilitary(x, y)) {
-    for (const [dx, dy] of [[2,0],[-2,0],[0,2],[0,-2],[1,1],[1,-1],[-1,1],[-1,-1]]) {
-      if (ownerAt(x + dx, y + dy) === myId) return true;
-    }
+    if (GUERRILLA_JUMP_DIRS.some(([dx, dy]) => connected(x + dx, y + dy))) return true;
   }
   return false;
 }
