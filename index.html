@@ -19,6 +19,7 @@
   .card.coin { border-color:rgba(255,225,77,.6); }
   .card.coin .v { color:var(--gold); text-shadow:0 0 6px rgba(255,225,77,.6); }
   .card.coin .daily-line { color:var(--lime); }
+  .card.coin .resource-v { color:var(--text); text-shadow:none; font-size:12px; display:flex; gap:5px; }
   .card.res .v { font-size:12px; display:flex; gap:5px; }
   .card .s { font-size:9px; color:var(--sub); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; box-shadow:0 0 6px currentColor; }
@@ -111,14 +112,16 @@
 <div id="app">
   <div id="top">
     <div class="card neon"><div class="l">Player / 陣営</div><div id="name"><span class="swatch" id="sw"></span><span id="uName"></span></div></div>
-    <div class="card neon coin"><div class="l">Coin</div><div class="v">🪙 <span id="coins">0</span></div><div class="s" id="nextH"></div><div class="s daily-line">🎁 <span id="dailyTimer">--:--:--</span> <span id="dailyStatus"></span></div></div>
-    <div class="card neon res">
-      <div class="l">Resources (毎時)</div>
-      <div class="v">
+    <div class="card neon coin">
+      <div class="l">Coin / Resources (毎時)</div>
+      <div class="v">🪙 <span id="coins">0</span></div>
+      <div class="resource-v">
         <span>🪵<b id="rWood">0</b><small id="incWood">(+0)</small></span>
         <span>💥<b id="rPowder">0</b><small id="incPowder">(+0)</small></span>
         <span>⚙️<b id="rMetal">0</b><small id="incMetal">(+0)</small></span>
       </div>
+      <div class="s" id="nextH"></div>
+      <div class="s daily-line">🎁 <span id="dailyTimer">--:--:--</span> <span id="dailyStatus"></span></div>
       <div class="s" id="worldClock"></div>
     </div>
     <div class="card neon"><div class="l">Territory</div><div class="v"><span id="myCells">0</span>マス <span id="myRank" style="font-size:11px;color:var(--mag)"></span></div></div>
