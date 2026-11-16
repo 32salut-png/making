@@ -477,9 +477,75 @@ const wondersUrl = `${DB}/gameData/${GAME_ID}/world/wonders.json`;
 const toKey = (x, y) => (y * N + x).toString(36);
 const parseKey = k => { const i = parseInt(k, 36); return (i >= 0 && i < N * N) ? [i % N, (i / N) | 0] : null; };
 
+const CACHE_DB = "neon-territory-cache-v1";
+let cacheState = { pids:null, cells:null, cellMods:null, players:null, world:null, player:null }, cacheSaveTimer = 0;
+const cacheDb = new Promise((resolve, reject) => {
+  if (!("indexedDB" in window)) return reject(new Error("IndexedDB unavailable"));
+  const req = indexedDB.open(CACHE_DB, 1);
+  req.onupgradeneeded = () => req.result.createObjectStore("snapshots");
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function readCache() {
+  try {
+    const db = await cacheDb;
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction("snapshots", "readonly").objectStore("snapshots").get(GAME_ID);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (_) { return null; }
+}
+function scheduleCacheSave() {
+  clearTimeout(cacheSaveTimer);
+  cacheSaveTimer = setTimeout(async () => {
+    try {
+      const db = await cacheDb;
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("snapshots", "readwrite");
+        tx.objectStore("snapshots").put(cacheState, GAME_ID);
+        tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+      });
+    } catch (_) {}
+  }, 250);
+}
+function applyCellsSnapshot(data) {
+  grid.fill(0); counts.fill(0);
+  if (data) for (const k in data) {
+    const xy = parseKey(k), [o, l] = parseCell(data[k]);
+    if (xy && o) setXY(xy[0], xy[1], o, l);
+  }
+  loadedOnce = true; recalcSupply();
+}
+function applyModsSnapshot(data) {
+  cellMods.clear();
+  if (data) for (const k in data) {
+    const xy = parseKey(k);
+    if (xy) cellMods.set(xy[1] * N + xy[0], data[k]);
+  }
+}
+async function loadCachedState() {
+  const cached = await readCache();
+  if (!cached) return;
+  cacheState = { ...cacheState, ...cached };
+  if (cacheState.pids) setPidList(cacheState.pids);
+  if (cacheState.player) applyPlayerData(cacheState.player, false);
+  if (cacheState.cells) {
+    applyCellsSnapshot(cacheState.cells);
+    if (playerLoaded) goHome(); else centerOn(N / 2, N / 2);
+  }
+  if (cacheState.cellMods) applyModsSnapshot(cacheState.cellMods);
+  if (cacheState.players) allPlayersCache = cacheState.players;
+  if (cacheState.world) {
+    worldEvents = cacheState.world.events || {};
+    worldWonders = cacheState.world.wonders || {};
+  }
+  updateInfo(); updateAlertBar(); dirty = true;
+}
+
 let pIdNames = [], pIdByName = new Map();
 function setPidList(arr) { pIdNames = Array.isArray(arr) ? arr : []; pIdByName = new Map(); for (let i = 0; i < pIdNames.length; i++) if (pIdNames[i]) pIdByName.set(pIdNames[i], i); }
-async function loadPids() { try { const d = await fetch(pIdsUrl).then(r => r.json()); if (d) setPidList(d); } catch (_) {} }
+async function loadPids() { try { const d = await fetch(pIdsUrl).then(r => r.json()); if (d) { setPidList(d); cacheState.pids = d; scheduleCacheSave(); } } catch (_) {} }
 async function ensurePidsFor(list) {
   const miss = list.filter(n => n && !pIdByName.has(n)); if (!miss.length) return;
   for (let t = 0; t < 6; t++) {
@@ -863,12 +929,16 @@ async function savePlayer() {
     coins, res:{ wood, powder, metal }, started, ideology, ideoChangedAt, core, camps, workDrone, designPollution,
     protectUntil, protectBroken, lastActiveTick, day:lastDay, skillCD, shieldUntil, shieldStacks, miniShieldStacks, miniShieldUntil, shieldUsedHr, shieldUsedCnt, empUntil, boostUntil, capitalFallUntil, rebelUntil, rebelCD, rebelHits, items:inv, t:srvNow()
   };
+  cacheState.player = doc; scheduleCacheSave();
   await fetch(playerUrl, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(doc) }).catch(()=>{});
 }
 async function loadPlayer() {
   if (myName === "Guest") { syncTime(); return; }
   await syncTime();
   const p = await fetch(playerUrl).then(r => r.json()).catch(() => null) || {};
+  applyPlayerData(p, true);
+}
+function applyPlayerData(p, normalize = false) {
   coins = p.coins || 0; wood = p.res?.wood || 0; powder = p.res?.powder || 0; metal = p.res?.metal || 0;
   started = !!p.started; ideology = p.ideology || null; ideoChangedAt = p.ideoChangedAt || 0;
   core = p.core || null; camps = Array.isArray(p.camps) ? p.camps : [];
@@ -880,9 +950,11 @@ async function loadPlayer() {
   skillCD = p.skillCD || { main:0, counter:0 }; shieldUntil = p.shieldUntil || 0; shieldStacks = p.shieldStacks || 0; miniShieldStacks = Math.min(3, p.miniShieldStacks || 0); miniShieldUntil = p.miniShieldUntil || 0; shieldUsedHr = p.shieldUsedHr ?? -1; shieldUsedCnt = p.shieldUsedCnt || 0; empUntil = p.empUntil || 0; boostUntil = p.boostUntil || 0;
   capitalFallUntil = p.capitalFallUntil || 0; rebelUntil = p.rebelUntil || 0; rebelCD = p.rebelCD || 0; rebelHits = p.rebelHits || 0;
   for (const k in inv) inv[k] = p.items?.[k] || 0;
-  if ((p.items?.sniper || 0) > 0) inv.bunker += p.items.sniper;
+  inv.bunker = (p.items?.bunker || 0) + (p.items?.sniper || 0);
   playerLoaded = true;
-  if (normalizeTick && myName !== "Guest") savePlayer();
+  if (normalize && normalizeTick && myName !== "Guest") savePlayer();
+  cacheState.player = p;
+  scheduleCacheSave();
   recalcSupply();
   if (loadedOnce) goHome();
   if (!ideology && myName !== "Guest") setTimeout(() => { renderIdeoModal(); $("ideoModal").classList.add("show"); }, 600);
@@ -1506,30 +1578,33 @@ function scheduleRefresh() {
 function connect() {
   newES(pIdsUrl).addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
-    if (path === "/" && data) { setPidList(data); dirty = true; } else loadPids();
+    if (path === "/" && data) { setPidList(data); cacheState.pids = data; scheduleCacheSave(); dirty = true; } else loadPids();
   });
   const cES = newES(`${DB}/gameData/${GAME_ID}/cells.json`);
   cES.onopen = () => { $("status").textContent = "🟢 ONLINE"; };
   cES.onerror = () => { $("status").textContent = "🔴 再接続中…"; };
   cES.addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
-    if (path === "/") { grid.fill(0); counts.fill(0); if (data) for (const k in data) { const xy = parseKey(k), [o, l] = parseCell(data[k]); if (xy && o) setXY(xy[0], xy[1], o, l); } loadedOnce = true; recalcSupply(); if (playerLoaded) goHome(); else centerOn(N / 2, N / 2); updateInfo(); dirty = true; $("status").textContent = "🟢 ONLINE"; }
-    else { const xy = parseKey(path.slice(1)), [o, l] = parseCell(data); if (xy) { setXY(xy[0], xy[1], o, l); scheduleRefresh(); } }
+    if (path === "/") { cacheState.cells = data || {}; applyCellsSnapshot(cacheState.cells); if (playerLoaded) goHome(); else centerOn(N / 2, N / 2); updateInfo(); scheduleCacheSave(); dirty = true; $("status").textContent = "🟢 ONLINE"; }
+    else { const key = path.slice(1), xy = parseKey(key), [o, l] = parseCell(data); if (xy) { if (!cacheState.cells) cacheState.cells = {}; if (data == null) delete cacheState.cells[key]; else cacheState.cells[key] = data; setXY(xy[0], xy[1], o, l); scheduleCacheSave(); scheduleRefresh(); } }
   });
   newES(`${DB}/gameData/${GAME_ID}/cellMods.json`).addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
-    if (path === "/") { cellMods.clear(); if (data) for (const k in data) { const xy = parseKey(k); if (xy) cellMods.set(xy[1]*N+xy[0], data[k]); } }
-    else { const xy = parseKey(path.slice(1)); if (xy) { if (data) cellMods.set(xy[1]*N+xy[0], data); else cellMods.delete(xy[1]*N+xy[0]); } }
+    if (path === "/") { cacheState.cellMods = data || {}; applyModsSnapshot(cacheState.cellMods); }
+    else { const key = path.slice(1), xy = parseKey(key); if (xy) { if (!cacheState.cellMods) cacheState.cellMods = {}; if (data) { cacheState.cellMods[key] = data; cellMods.set(xy[1]*N+xy[0], data); } else { delete cacheState.cellMods[key]; cellMods.delete(xy[1]*N+xy[0]); } } }
+    scheduleCacheSave();
     dirty = true;
   });
   newES(`${DB}/gameData/${GAME_ID}/players.json`).addEventListener("put", e => {
     const { path, data } = JSON.parse(e.data);
     if (path === "/") allPlayersCache = data || {};
+    else if (data == null) delete allPlayersCache[decodeURIComponent(path.slice(1))];
     else allPlayersCache[decodeURIComponent(path.slice(1))] = data;
+    cacheState.players = allPlayersCache; scheduleCacheSave();
     dirty = true;
   });
   fetch(`${DB}/gameData/${GAME_ID}/world.json`).then(r => r.json()).then(d => {
-    if (d) { worldEvents = d.events || {}; worldWonders = d.wonders || {}; updateAlertBar(); dirty = true; }
+    if (d) { worldEvents = d.events || {}; worldWonders = d.wonders || {}; cacheState.world = { events:worldEvents, wonders:worldWonders }; scheduleCacheSave(); updateAlertBar(); dirty = true; }
   }).catch(()=>{});
   const handleWorld = e => {
     const { path, data } = JSON.parse(e.data);
@@ -1538,6 +1613,7 @@ function connect() {
     else if (path === "/wonders" && data) { Object.assign(worldWonders, data); }
     else if (path.startsWith("/events/")) { const k = path.slice(8); if (data) worldEvents[k] = data; else delete worldEvents[k]; }
     else if (path.startsWith("/wonders/")) { const k = path.slice(9); if (data) worldWonders[k] = data; else delete worldWonders[k]; }
+    cacheState.world = { events:worldEvents, wonders:worldWonders }; scheduleCacheSave();
     updateAlertBar(); dirty = true;
   };
   const wES = newES(`${DB}/gameData/${GAME_ID}/world.json`);
@@ -1967,8 +2043,13 @@ if (myName === "のむのむ") {
 
 // 起動
 resize(); centerOn(N / 2, N / 2);
-loadPids().finally(connect);
-loadPlayer().then(() => { syncAllianceAndVassal(); checkMailbox(); });
+loadCachedState().then(() => {
+  loadPlayer().then(() => { syncAllianceAndVassal(); checkMailbox(); });
+  return loadPids().finally(connect);
+}).catch(() => {
+  loadPids().finally(connect);
+  loadPlayer().then(() => { syncAllianceAndVassal(); checkMailbox(); });
+});
 setInterval(() => { processHourlyAndDecay(); }, 5000);
 async function autoEventTick() {
   if (myName === "Guest" || !timeReady || !loadedOnce || !isActiveTime()) return;
