@@ -281,7 +281,7 @@
       <h4>💰 資本（メガコープ）</h4>
       <ul><li>毎時コイン+30%。②ゴールドラッシュは指定地点と上下左右の5マスを金脈化（CT12h）。奪われると通常化します。軍閥のLv4〜5要塞をLv維持で奪取できます。</li></ul>
       <h4>🛡️ 軍閥（アイアン）</h4>
-      <ul><li>防衛上限Lv5。②絨毯制圧砲撃は3×3を攻撃し、敵Lv1を奪取・高Lvを-2・味方を+2（CT3h）。ゲリラの飛び石・仮拠点を封じ、ゲリラからの攻撃コストを2倍にします。</li></ul>
+      <ul><li>防衛上限Lv5。②絨毯制圧砲撃は3×3を攻撃し、敵Lv0を奪取・敵Lv1を中立化・高Lvを-2・味方を+2し、中立地は最大3マスまでLv1化します（CT3h）。ゲリラの飛び石・仮拠点を封じ、ゲリラからの攻撃コストを2倍にします。</li></ul>
       <h4>⚡ ゲリラ（ノーマッド）</h4>
       <ul><li>1マス空けの飛び石配置と補給が可能。②秘密野営地は空き地に2×2仮拠点を設置（CT4h）。電脳マスを奪うと、奪取コスト返還＋相手資産10%強奪。</li></ul>
       <h4>🔬 電脳（サイバー）</h4>
@@ -468,7 +468,7 @@ function activeHoursSince(lastTs, nowTs) {
 // ===== 5大イデオロギー定義 =====
 const IDEOLOGIES = {
   capital:   { id:"capital",   name:"💰 資本(メガコープ)", color:"#ffe14d", pDesc:"毎時コイン+30%", aName:"ゴールドラッシュ", aDesc:"十字5マスをコインマス化(奪われると消滅)", aCT:12*HOUR, cDesc:"対軍閥: Lv4〜5要塞奪取時にLv引き継ぎ" },
-  military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv1奪取/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
+  military:  { id:"military",  name:"🛡️ 軍閥(アイアン)",   color:"#ff4d6d", pDesc:"防衛上限Lv5解放", aName:"絨毯制圧砲撃", aDesc:"3×3砲撃(敵Lv0奪取/敵Lv1中立化/中立3マスをLv1化/高Lv-2/味方Lv+2)", aCT:3*HOUR, cDesc:"対ゲリラ: 周囲2マス以内の飛び石・仮拠点禁止" },
   guerrilla: { id:"guerrilla", name:"⚡ ゲリラ(ノーマッド)", color:"#39ff14", pDesc:"1マス空け(飛び石)配置＆補給維持", aName:"秘密野営地", aDesc:"任意空き地に2×2仮拠点を設営(補給基点)", aCT:4*HOUR, cDesc:"対電脳: 電脳マス奪取時コスト返還+10%強奪" },
   cyber:     { id:"cyber",     name:"🔬 電脳(サイバー)",   color:"#00f0ff", pDesc:"全プレイヤーのデータ詳細を閲覧、アイテム効果時間+25%", aName:"データ加速", aDesc:"1時間分の報酬を獲得し、同盟メンバー全員の残りCTを50%短縮", aCT:3*HOUR, cName:"設計図汚染", cDesc:"半径5マスの円形範囲で工兵の改造結果をランダム化(2時間)", cCT:6*HOUR },
   engineer:  { id:"engineer",  name:"🏗️ 工兵(エンジニア)", color:"#ffaa00", pDesc:"強化＆クラフト素材25%オフ", aName:"精密テラフォーム", aDesc:"好きな最大5マスを防壁/資源マスに一括改造", aCT:4*HOUR, cName:"工作ドローン", cDesc:"資本の金脈を中心とする十字5マスの合計収入50%を獲得", cCT:6*HOUR },
@@ -1262,18 +1262,23 @@ async function executePointSkill(x, y) {
     skillCD.main = srvNow() + IDEOLOGIES.capital.aCT; savePlayer(); toast("💰 ゴールドラッシュ発動！十字5マスがコインマス化！");
   } else if (mode === "military") {
     await ensurePidsFor([myName]);
-    let cap = 0, dmg = 0, up = 0;
+    let cap = 0, neutralized = 0, dmg = 0, up = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       const nx = x+dx, ny = y+dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
       const i = ny*N+nx, o = grid[i], oName = names[o], l = lvl[i];
       if (o === myId) { const nl = Math.min(MAX_LV_MIL, l + 2); setXY(nx, ny, myName, nl); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, nl)) }); up++; }
       else if (o && !isAlly(oName) && !isProtected(oName)) {
-        if (l <= 1) { setXY(nx, ny, myName, 0); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 0)) }); cap++; }
+        if (l === 0) { setXY(nx, ny, myName, 0); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 0)) }); cap++; }
+        else if (l === 1) { setXY(nx, ny, null); fetch(cellUrl(toKey(nx, ny)), { method:"DELETE" }); dmg++; }
         else { setXY(nx, ny, oName, l - 2); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(oName, l - 2)) }); dmg++; }
+      } else if (!o && neutralized < 3) {
+        setXY(nx, ny, myName, 1);
+        fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 1)) });
+        cap++; neutralized++;
       }
     }
     skillCD.main = srvNow() + IDEOLOGIES.military.aCT; recalcSupply(); savePlayer();
-    toast(`🛡️ 絨毯砲撃！奪取:${cap} / 削り:${dmg} / 味方強化:${up}`);
+    toast(`🛡️ 絨毯砲撃！奪取:${cap} (中立Lv1化:${neutralized}) / 削り:${dmg} / 味方強化:${up}`);
   } else if (mode === "guerrilla") {
     if (isNearMilitary(x, y)) { toast("🛡️ 軍閥の警戒網(周囲2マス)内には設営できません！"); return; }
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (ownerAt(x+dx, y+dy) !== 0) { toast("2×2の空き地を選んでください"); return; }
