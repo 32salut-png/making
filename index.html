@@ -716,7 +716,11 @@ function recalcSupply() {
   camps = camps.filter(cp => ownerAt(cp.x,cp.y)===myId || ownerAt(cp.x+1,cp.y)===myId || ownerAt(cp.x,cp.y+1)===myId || ownerAt(cp.x+1,cp.y+1)===myId);
   if (camps.length !== prevLen && playerLoaded) savePlayer();
   for (const cp of camps) { push(cp.x, cp.y); push(cp.x+1, cp.y); push(cp.x, cp.y+1); push(cp.x+1, cp.y+1); }
-  for (let i = 0; i < grid.length; i++) if (warpAdj[i] && grid[i] === myId) push(i % N, (i / N) | 0);
+  for (const wi of warpList) {
+    if (grid[wi] !== myId) continue;
+    const wx = wi % N, wy = (wi / N) | 0;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) push(wx + dx, wy + dy);
+  }
   const dirs = ideology === "guerrilla" ? GUERRILLA_SUPPLY_DIRS : ORTHOGONAL_DIRS;
   let head = 0;
   while (head < q.length) {
