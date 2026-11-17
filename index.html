@@ -712,14 +712,16 @@ function recalcSupply() {
   if (core && ownerAt(core.x, core.y) !== myId) core = null;
   if (!core) { for (let i = 0; i < grid.length; i++) if (grid[i] === myId) { core = { x: i % N, y: (i / N) | 0 }; break; } }
   if (core) push(core.x, core.y);
+  const ownsWarp = warpList.some(i => grid[i] === myId);
   const prevLen = camps.length;
   camps = camps.filter(cp => ownerAt(cp.x,cp.y)===myId || ownerAt(cp.x+1,cp.y)===myId || ownerAt(cp.x,cp.y+1)===myId || ownerAt(cp.x+1,cp.y+1)===myId);
   if (camps.length !== prevLen && playerLoaded) savePlayer();
   for (const cp of camps) { push(cp.x, cp.y); push(cp.x+1, cp.y); push(cp.x, cp.y+1); push(cp.x+1, cp.y+1); }
-  for (const wi of warpList) {
-    if (grid[wi] !== myId) continue;
-    const wx = wi % N, wy = (wi / N) | 0;
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) push(wx + dx, wy + dy);
+  if (ownsWarp) {
+    for (const wi of warpList) {
+      const wx = wi % N, wy = (wi / N) | 0;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) push(wx + dx, wy + dy);
+    }
   }
   const dirs = ideology === "guerrilla" ? GUERRILLA_SUPPLY_DIRS : ORTHOGONAL_DIRS;
   let head = 0;
@@ -755,7 +757,7 @@ function nearMine(x, y) {
   if (ORTHOGONAL_DIRS.some(([dx, dy]) => connected(x + dx, y + dy))) return true;
   if (hasWarp && warpList.some(wi => {
     const wx = wi % N, wy = (wi / N) | 0;
-    return connected(wx, wy) && Math.abs(wx - x) <= 1 && Math.abs(wy - y) <= 1;
+    return Math.abs(wx - x) <= 1 && Math.abs(wy - y) <= 1;
   })) return true;
   if (ideology === "guerrilla" && !isNearMilitary(x, y)) {
     if (GUERRILLA_JUMP_DIRS.some(([dx, dy]) => connected(x + dx, y + dy))) return true;
