@@ -393,6 +393,7 @@ const EMPTY_COST = 1, ENEMY_COST = 3, FACTORY_EMPTY_COST = 10, FACTORY_ENEMY_COS
 const ALLIANCE_COST = 30, DAILY_COINS = 20, HOURLY_COINS = 2, COIN_CELL_HOURLY = 1, RES_HOURLY = 2;
 const MAX_LV_BASE = 3, MAX_LV_MIL = 5, UPGRADE_COSTS = [3, 6, 10, 16, 25], DEF_PER_LV = 2, FORT_DEF = 2;
 const HOUR = 3600000, DAY = 86400000;
+const JST_OFFSET = 9 * HOUR, MAX_ACTIVE_LOOKBACK = 2 * DAY;
 const $ = id => document.getElementById(id);
 const esc = s => String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -425,44 +426,47 @@ setInterval(() => syncTime().catch(() => {}), 300000);
 
 function isActiveTime(ts = srvNow()) {
   if (adminBypassTime) return true;
-  const d = new Date(ts), day = d.getDay(), h = d.getHours();
+  const d = new Date(ts + JST_OFFSET), day = d.getUTCDay(), h = d.getUTCHours();
   return day >= 1 && day <= 5 && h >= 9 && h < 17;
 }
 function nextHourlyRewardAt(ts) {
   if (adminBypassTime) {
-    const next = new Date(ts);
-    next.setMinutes(0, 0, 0);
-    if (next.getTime() <= ts) next.setTime(next.getTime() + HOUR);
-    return next.getTime();
+    const next = new Date(ts + JST_OFFSET);
+    next.setUTCMinutes(0, 0, 0);
+    let result = next.getTime() - JST_OFFSET;
+    if (result <= ts) result += HOUR;
+    return result;
   }
-  const next = new Date(ts);
-  const day = next.getDay(), hour = next.getHours();
+  const next = new Date(ts + JST_OFFSET);
+  const day = next.getUTCDay(), hour = next.getUTCHours();
   if (day >= 1 && day <= 5 && hour >= 9 && hour < 17) {
-    next.setMinutes(0, 0, 0);
-    next.setHours(next.getHours() + 1);
-    return next.getTime();
+    next.setUTCMinutes(0, 0, 0);
+    next.setUTCHours(next.getUTCHours() + 1);
+    return next.getTime() - JST_OFFSET;
   }
-  if (day >= 1 && day <= 5 && hour < 9) next.setHours(10, 0, 0, 0);
+  if (day >= 1 && day <= 5 && hour < 9) next.setUTCHours(10, 0, 0, 0);
   else {
-    next.setDate(next.getDate() + 1);
-    next.setHours(10, 0, 0, 0);
-    while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+    next.setUTCDate(next.getUTCDate() + 1);
+    next.setUTCHours(10, 0, 0, 0);
+    while (next.getUTCDay() === 0 || next.getUTCDay() === 6) next.setUTCDate(next.getUTCDate() + 1);
   }
-  return next.getTime();
+  return next.getTime() - JST_OFFSET;
 }
 function activeMsBetween(t1, t2) {
   if (t2 <= t1) return 0;
   if (adminBypassTime) return t2 - t1;
+  if (!Number.isFinite(t1) || !Number.isFinite(t2)) return 0;
+  t1 = Math.max(t1, t2 - MAX_ACTIVE_LOOKBACK);
   let total = 0;
-  const d = new Date(t1); d.setHours(0, 0, 0, 0);
-  while (d.getTime() < t2) {
-    const wd = d.getDay();
+  const d = new Date(t1 + JST_OFFSET); d.setUTCHours(0, 0, 0, 0);
+  while (d.getTime() - JST_OFFSET < t2) {
+    const wd = d.getUTCDay();
     if (wd >= 1 && wd <= 5) {
-      const s = new Date(d).setHours(9, 0, 0, 0), e = new Date(d).setHours(17, 0, 0, 0);
+      const s = d.getTime() - JST_OFFSET + 9 * HOUR, e = d.getTime() - JST_OFFSET + 17 * HOUR;
       const a = Math.max(s, t1), b = Math.min(e, t2);
       if (b > a) total += b - a;
     }
-    d.setDate(d.getDate() + 1);
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return total;
 }
@@ -801,13 +805,14 @@ function myResInc() {
   }
   if (workDrone && workDrone.target && workDrone.until > srvNow()) {
     const droneIdx = workDrone.y * N + workDrone.x;
-    if (grid[droneIdx] === (idMap.get(workDrone.target) || 0) && (coinMap[droneIdx] || cellMods.get(droneIdx)?.type === MOD_CAP_COIN)) {
+    const droneOwnerId = idMap.get(workDrone.target);
+    if (droneOwnerId && grid[droneIdx] === droneOwnerId && (coinMap[droneIdx] || cellMods.get(droneIdx)?.type === MOD_CAP_COIN)) {
       let crossTotal = 0;
       for (const [dx, dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
         const x = workDrone.x + dx, y = workDrone.y + dy;
         if (x >= 0 && y >= 0 && x < N && y < N) {
           const i = y * N + x, mod = cellMods.get(i);
-          if (grid[i] === (idMap.get(workDrone.target) || 0) && (coinMap[i] || mod?.type === MOD_CAP_COIN)) crossTotal += COIN_CELL_HOURLY + lvl[i];
+          if (droneOwnerId && grid[i] === droneOwnerId && (coinMap[i] || mod?.type === MOD_CAP_COIN)) crossTotal += COIN_CELL_HOURLY + lvl[i];
         }
       }
       c += Math.floor(crossTotal * 0.5);
@@ -1424,9 +1429,10 @@ function updateAlertBar() {
   const mk = isEvtOn("mask");
   if (mk) html += `<div class="pill warn">🎭 仮面舞踏会: 敵マスの所有者が不明 残り${countdownHTML("mask", worldEvents.mask.until - now, fmtM)}</div>`;
   if (mk !== maskPrev) { maskPrev = mk; dirty = true; }
-  const dNow = new Date(now), isMerchWin = dNow.getMinutes() < 10 && ((dNow.getHours() * 131 + dNow.getDate() * 37) % 2 === 0);
+  const dNow = new Date(now + JST_OFFSET), minute = dNow.getUTCMinutes(), hour = dNow.getUTCHours(), date = dNow.getUTCDate();
+  const isMerchWin = minute < 10 && ((hour * 131 + date * 37) % 2 === 0);
   const low = getLowestPlayer();
-  if (low === myName && isMerchWin && isActiveTime(now)) html += `<div class="pill gold" style="cursor:pointer" onclick="openMerchant()">🕵️‍♂️ 闇商人が出現中！(残り${10 - dNow.getMinutes()}分・タップで開く)</div>`;
+  if (low === myName && isMerchWin && isActiveTime(now)) html += `<div class="pill gold" style="cursor:pointer" onclick="openMerchant()">🕵️‍♂️ 闇商人が出現中！(残り${10 - minute}分・タップで開く)</div>`;
   if (skillMode) html += `<div class="pill mode" onclick="skillMode=null;updateAlertBar()">🎯 スキルターゲット選択中 (タップして発動 / ここを押してキャンセル)</div>`;
   if (engMode) html += `<div class="pill mode">🏗️ 工兵改造モード: 最大5マス選択して下の確定ボタンを押してください</div>`;
   if (bar._h !== html) { bar._h = html; bar.innerHTML = html; }
@@ -1611,10 +1617,11 @@ function countdownHTML(key, ms, formatter = fmt) {
   }).join("");
 }
 function nextDailyReset(ts) {
-  const next = new Date(ts);
-  next.setHours(12, 0, 0, 0);
-  if (next.getTime() <= ts) next.setDate(next.getDate() + 1);
-  return next.getTime();
+  const next = new Date(ts + JST_OFFSET);
+  next.setUTCHours(12, 0, 0, 0);
+  let result = next.getTime() - JST_OFFSET;
+  if (result <= ts) result += DAY;
+  return result;
 }
 
 function updateInfo() {
@@ -1823,7 +1830,8 @@ async function hitTarget(x, y, bypassShield = false) {
   if (!bypassShield) {
     const now = srvNow();
     const blocked = await consumeShield(oName, now);
-    if (blocked === true || blocked === null) return "blocked";
+    if (blocked === null) return "error";
+    if (blocked === true) return "blocked";
   }
   if (cellMods.has(i)) { cellMods.delete(i); fetch(modUrl(toKey(x, y)), { method:"DELETE" }).catch(()=>{}); }
   setXY(x, y, null);
@@ -1865,24 +1873,24 @@ window.useItem = async id => {
     const targets = []; for (let i = 0; i < grid.length; i++) { const o = names[grid[i]]; if (grid[i] && grid[i] !== myId && !isAlly(o) && !isProtected(o)) targets.push(i); }
     if (!targets.length) { toast("攻撃可能な敵マスがありません"); return; }
     targets.sort(() => Math.random() - 0.5); inv.missile--; savePlayer();
-    let des = 0, blk = 0;
-    for (const t of targets.slice(0, 20)) { const r = await hitTarget(t % N, (t / N) | 0, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
-    toast(`🚀 戦略ミサイル着弾！破壊: ${des} / 敵シールド防護: ${blk}`);
+    let des = 0, blk = 0, err = 0;
+    for (const t of targets.slice(0, 20)) { const r = await hitTarget(t % N, (t / N) | 0, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; else if (r === "error") err++; }
+    toast(`🚀 戦略ミサイル着弾！破壊: ${des} / 敵シールド防護: ${blk}${err ? ` / 通信失敗:${err}` : ""}`);
   } else if (id === "bomb") {
     if (!selected) return toast("💣 爆撃中心マスを選択してください");
     inv.bomb--; savePlayer();
-    let des = 0, blk = 0;
+    let des = 0, blk = 0, err = 0;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
       const nx = selected.x + dx, ny = selected.y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-      const r = await hitTarget(nx, ny, false); if (r === "destroyed") des++; else if (r === "blocked") blk++;
+      const r = await hitTarget(nx, ny, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; else if (r === "error") err++;
     }
-    toast(`💣 メガボム炸裂！破壊: ${des} / 敵シールド防護: ${blk}`);
+    toast(`💣 メガボム炸裂！破壊: ${des} / 敵シールド防護: ${blk}${err ? ` / 通信失敗:${err}` : ""}`);
   } else if (id === "laser") {
     if (!selected) return toast("🛰️ レーザー行のマスを選択してください");
     inv.laser--; savePlayer(); const y = selected.y;
-    let des = 0, blk = 0;
-    for (let x = 0; x < N; x++) { const r = await hitTarget(x, y, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; }
-    toast(`🛰️ 衛星レーザー照射！破壊: ${des} / 敵シールド防護: ${blk}`);
+    let des = 0, blk = 0, err = 0;
+    for (let x = 0; x < N; x++) { const r = await hitTarget(x, y, false); if (r === "destroyed") des++; else if (r === "blocked") blk++; else if (r === "error") err++; }
+    toast(`🛰️ 衛星レーザー照射！破壊: ${des} / 敵シールド防護: ${blk}${err ? ` / 通信失敗:${err}` : ""}`);
   }
   dirty = true; updateInfo();
 };
@@ -2209,7 +2217,7 @@ loadCachedState().then(() => {
 setInterval(() => { processHourlyAndDecay(); }, 5000);
 async function autoEventTick() {
   if (myName === "Guest" || !timeReady || !loadedOnce || !isActiveTime()) return;
-  const now = srvNow(), hr = new Date(now).getHours();
+  const now = srvNow(), hr = new Date(now + JST_OFFSET).getUTCHours();
   if (hr >= 14) return; // 3h継続イベントが稼働時間内に収まる時間帯のみ
   if (["meteor", "fog", "gamble", "mask"].some(k => isEvtOn(k))) return;
   const url = `${DB}/gameData/${GAME_ID}/world/eventNext.json`;
