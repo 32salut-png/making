@@ -1092,6 +1092,14 @@ async function claim() {
           const cx = hitCamp.x + dx, cy = hitCamp.y + dy;
           if ((cx !== x || cy !== y) && ownerAt(cx, cy) === idMap.get(oldO)) { setXY(cx, cy, null); fetch(cellUrl(toKey(cx, cy)), { method:"DELETE" }).catch(()=>{}); }
         }
+        const targetPlayer = allPlayersCache[oldO];
+        if (targetPlayer?.camps) {
+          const nextCamps = targetPlayer.camps.filter(cp => cp.x !== hitCamp.x || cp.y !== hitCamp.y);
+          targetPlayer.camps = nextCamps;
+          fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, {
+            method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ camps:nextCamps })
+          }).catch(()=>{});
+        }
         toast(`🛡️ ゲリラの仮拠点(⛺)を連鎖崩壊させました！`);
       }
     }
@@ -1189,9 +1197,16 @@ window.removeWorkDrone = async () => {
   if (!selected || coins < 20 || metal < 20) return toast("解除には🪙20と⚙️20が必要です");
   const i = selected.y * N + selected.x, owner = getDroneOwnerAt(i);
   if (!owner) return;
-  workDrone = owner === myName ? null : workDrone;
   if (owner === myName) { workDrone = null; savePlayer(); }
-  else fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}/workDrone.json`, { method:"DELETE" }).catch(()=>{});
+  else {
+    const r = await fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}/workDrone.json`, { method:"DELETE" }).catch(() => null);
+    if (!r?.ok) return toast("ドローン解除の通信に失敗しました");
+    if (allPlayersCache[owner]) {
+      allPlayersCache[owner] = { ...allPlayersCache[owner], workDrone:null };
+      cacheState.players = allPlayersCache;
+      scheduleCacheSave();
+    }
+  }
   coins -= 20; metal -= 20; savePlayer(); updateInfo(); dirty = true;
   toast("🛠️ 工作ドローンを高コストで解除しました");
 };
@@ -1699,6 +1714,24 @@ function listenPlayerSummaries() {
     applyPlayerSummary(path, data);
   });
 }
+function listenOwnPlayer() {
+  if (myName === "Guest") return;
+  const es = newES(playerUrl);
+  const apply = e => {
+    const { path, data } = JSON.parse(e.data);
+    if (path === "/skillCD" && data && typeof data === "object") {
+      skillCD = { main: data.main || 0, counter: data.counter || 0 };
+      cacheState.player = { ...(cacheState.player || {}), skillCD };
+      scheduleCacheSave(); updateInfo(); dirty = true;
+    } else if (path === "/" && data?.skillCD) {
+      skillCD = { main: data.skillCD.main || 0, counter: data.skillCD.counter || 0 };
+      cacheState.player = { ...(cacheState.player || {}), skillCD };
+      scheduleCacheSave(); updateInfo(); dirty = true;
+    }
+  };
+  es.addEventListener("put", apply);
+  es.addEventListener("patch", apply);
+}
 async function connectPlayerSummaries() {
   const summaries = await fetch(`${playerSummariesUrl}.json`).then(r => r.json()).catch(() => null);
   if (summaries && typeof summaries === "object" && Object.keys(summaries).length) {
@@ -1741,6 +1774,7 @@ function connect() {
     dirty = true;
   });
   connectPlayerSummaries();
+  listenOwnPlayer();
   fetch(`${DB}/gameData/${GAME_ID}/world.json`).then(r => r.json()).then(d => {
     if (d) { worldEvents = d.events || {}; worldWonders = d.wonders || {}; cacheState.world = { events:worldEvents, wonders:worldWonders }; scheduleCacheSave(); updateAlertBar(); dirty = true; }
   }).catch(()=>{});
