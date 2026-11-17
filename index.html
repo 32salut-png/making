@@ -1266,10 +1266,15 @@ async function executePointSkill(x, y) {
     skillCD.main = srvNow() + IDEOLOGIES.capital.aCT; savePlayer(); toast("💰 ゴールドラッシュ発動！十字5マスがコインマス化！");
   } else if (mode === "military") {
     await ensurePidsFor([myName]);
-    let cap = 0, neutralized = 0, dmg = 0, up = 0;
+    let cap = 0, neutralized = 0, dmg = 0, up = 0, campBreaks = 0;
+    const hitCamps = new Map();
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       const nx = x+dx, ny = y+dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
       const i = ny*N+nx, o = grid[i], oName = names[o], l = lvl[i];
+      if (o && !isAlly(oName) && !isProtected(oName) && getPlayerIdeo(oName) === "guerrilla") {
+        const camp = (allPlayersCache[oName]?.camps || []).find(cp => nx >= cp.x && nx <= cp.x + 1 && ny >= cp.y && ny <= cp.y + 1);
+        if (camp) hitCamps.set(`${oName}:${camp.x},${camp.y}`, { owner:oName, camp });
+      }
       if (o === myId) { const nl = Math.min(MAX_LV_MIL, l + 2); setXY(nx, ny, myName, nl); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, nl)) }); up++; }
       else if (o && !isAlly(oName) && !isProtected(oName)) {
         if (l === 0) { setXY(nx, ny, myName, 0); fetch(cellUrl(toKey(nx, ny)), { method:"PUT", body:JSON.stringify(encodeCell(myName, 0)) }); cap++; }
@@ -1281,8 +1286,29 @@ async function executePointSkill(x, y) {
         cap++; neutralized++;
       }
     }
+    for (const { owner, camp } of hitCamps.values()) {
+      let destroyed = false;
+      for (let cdy = 0; cdy <= 1; cdy++) for (let cdx = 0; cdx <= 1; cdx++) {
+        const cx = camp.x + cdx, cy = camp.y + cdy;
+        if (ownerAt(cx, cy) === idMap.get(owner)) {
+          setXY(cx, cy, null);
+          fetch(cellUrl(toKey(cx, cy)), { method:"DELETE" }).catch(()=>{});
+          destroyed = true;
+        }
+      }
+      if (destroyed) {
+        campBreaks++;
+        const player = allPlayersCache[owner];
+        if (player?.camps) {
+          const nextCamps = player.camps.filter(cp => cp.x !== camp.x || cp.y !== camp.y);
+          fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}.json`, {
+            method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ camps:nextCamps })
+          }).catch(()=>{});
+        }
+      }
+    }
     skillCD.main = srvNow() + IDEOLOGIES.military.aCT; recalcSupply(); savePlayer();
-    toast(`🛡️ 絨毯砲撃！奪取:${cap} (中立Lv1化:${neutralized}) / 削り:${dmg} / 味方強化:${up}`);
+    toast(`🛡️ 絨毯砲撃！奪取:${cap} (中立Lv1化:${neutralized}) / 削り:${dmg} / 味方強化:${up}${campBreaks ? ` / 仮拠点崩壊:${campBreaks}` : ""}`);
   } else if (mode === "guerrilla") {
     if (isNearMilitary(x, y)) { toast("🛡️ 軍閥の警戒網(周囲2マス)内には設営できません！"); return; }
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (ownerAt(x+dx, y+dy) !== 0) { toast("2×2の空き地を選んでください"); return; }
