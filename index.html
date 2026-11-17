@@ -970,6 +970,23 @@ function playerSummary(doc) {
     protectBroken:!!doc.protectBroken, allianceId:doc.allianceId || null, rebelUntil:doc.rebelUntil || 0
   };
 }
+function patchRemotePlayer(name, patch) {
+  const encoded = encodeURIComponent(name);
+  const writes = [fetch(`${DB}/gameData/${GAME_ID}/players/${encoded}.json`, {
+    method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(patch)
+  })];
+  if (playerSummaryMode) {
+    const summaryPatch = {};
+    for (const key of ["coins", "camps", "workDrone", "designPollution", "protectUntil", "protectBroken", "rebelUntil"]) {
+      if (key in patch) summaryPatch[key] = patch[key];
+    }
+    if (patch.res) summaryPatch.res = { ...(allPlayersCache[name]?.res || {}), ...patch.res };
+    if (Object.keys(summaryPatch).length) writes.push(fetch(`${playerSummariesUrl}/${encoded}.json`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(summaryPatch)
+    }));
+  }
+  return Promise.all(writes).then(responses => responses.every(r => r?.ok));
+}
 async function writePlayer(doc) {
   if (playerSaveInFlight) { playerSaveQueued = true; return; }
   if (playerDetailsCache) playerDetailsCache[myName] = doc;
@@ -1079,7 +1096,7 @@ async function claim() {
       if (tp) {
         const sC = Math.floor((tp.coins||0)*0.1), sW = Math.floor((tp.res?.wood||0)*0.1), sP = Math.floor((tp.res?.powder||0)*0.1), sM = Math.floor((tp.res?.metal||0)*0.1);
         coins += sC; wood += sW; powder += sP; metal += sM;
-        fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ coins:Math.max(0,(tp.coins||0)-sC), res:{ wood:Math.max(0,(tp.res?.wood||0)-sW), powder:Math.max(0,(tp.res?.powder||0)-sP), metal:Math.max(0,(tp.res?.metal||0)-sM) } }) }).catch(()=>{});
+        patchRemotePlayer(oldO, { coins:Math.max(0,(tp.coins||0)-sC), res:{ wood:Math.max(0,(tp.res?.wood||0)-sW), powder:Math.max(0,(tp.res?.powder||0)-sP), metal:Math.max(0,(tp.res?.metal||0)-sM) } }).catch(()=>{});
         toast(`⚡ 対電脳強奪！コスト返還＆ 🪙+${sC} 🪵+${sW} 💥+${sP} ⚙️+${sM}`);
       }
     }
@@ -1096,9 +1113,7 @@ async function claim() {
         if (targetPlayer?.camps) {
           const nextCamps = targetPlayer.camps.filter(cp => cp.x !== hitCamp.x || cp.y !== hitCamp.y);
           targetPlayer.camps = nextCamps;
-          fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, {
-            method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ camps:nextCamps })
-          }).catch(()=>{});
+          patchRemotePlayer(oldO, { camps:nextCamps }).catch(()=>{});
         }
         toast(`🛡️ ゲリラの仮拠点(⛺)を連鎖崩壊させました！`);
       }
@@ -1109,7 +1124,7 @@ async function claim() {
       const tp = allPlayersCache[oldO];
       const rC = Math.floor((tp.coins||0)*0.25), rW = Math.floor((tp.res?.wood||0)*0.25), rP = Math.floor((tp.res?.powder||0)*0.25), rM = Math.floor((tp.res?.metal||0)*0.25);
       coins += rC; wood += rW; powder += rP; metal += rM;
-      fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(oldO)}.json`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ coins:Math.max(0,(tp.coins||0)-rC), res:{ wood:Math.max(0,(tp.res?.wood||0)-rW), powder:Math.max(0,(tp.res?.powder||0)-rP), metal:Math.max(0,(tp.res?.metal||0)-rM) }, capitalFallUntil:srvNow()+HOUR }) }).catch(()=>{});
+      patchRemotePlayer(oldO, { coins:Math.max(0,(tp.coins||0)-rC), res:{ wood:Math.max(0,(tp.res?.wood||0)-rW), powder:Math.max(0,(tp.res?.powder||0)-rP), metal:Math.max(0,(tp.res?.metal||0)-rM) }, capitalFallUntil:srvNow()+HOUR }).catch(()=>{});
       toast(`🏰 ${oldO} の本拠地を陥落！資産25%強奪 (+${rC}🪙)！`);
     }
     // 独立戦争進捗
@@ -1199,8 +1214,8 @@ window.removeWorkDrone = async () => {
   if (!owner) return;
   if (owner === myName) { workDrone = null; savePlayer(); }
   else {
-    const r = await fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}/workDrone.json`, { method:"DELETE" }).catch(() => null);
-    if (!r?.ok) return toast("ドローン解除の通信に失敗しました");
+    const r = await patchRemotePlayer(owner, { workDrone:null }).catch(() => null);
+    if (!r) return toast("ドローン解除の通信に失敗しました");
     if (allPlayersCache[owner]) {
       allPlayersCache[owner] = { ...allPlayersCache[owner], workDrone:null };
       cacheState.players = allPlayersCache;
@@ -1321,9 +1336,7 @@ async function executePointSkill(x, y) {
         const player = allPlayersCache[owner];
         if (player?.camps) {
           const nextCamps = player.camps.filter(cp => cp.x !== camp.x || cp.y !== camp.y);
-          fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(owner)}.json`, {
-            method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ camps:nextCamps })
-          }).catch(()=>{});
+          patchRemotePlayer(owner, { camps:nextCamps }).catch(()=>{});
         }
       }
     }
@@ -1717,17 +1730,27 @@ function listenPlayerSummaries() {
 function listenOwnPlayer() {
   if (myName === "Guest") return;
   const es = newES(playerUrl);
+  const applyPatch = patch => {
+    if (!patch || typeof patch !== "object") return;
+    if ("coins" in patch) coins = patch.coins || 0;
+    if ("res" in patch) {
+      wood = patch.res?.wood || 0; powder = patch.res?.powder || 0; metal = patch.res?.metal || 0;
+    }
+    if ("camps" in patch) camps = Array.isArray(patch.camps) ? patch.camps : [];
+    if ("workDrone" in patch) workDrone = patch.workDrone || null;
+    if ("capitalFallUntil" in patch) capitalFallUntil = patch.capitalFallUntil || 0;
+    if ("empUntil" in patch) empUntil = patch.empUntil || 0;
+    if ("skillCD" in patch) skillCD = { main:patch.skillCD?.main || 0, counter:patch.skillCD?.counter || 0 };
+    cacheState.player = { ...(cacheState.player || {}), ...patch, res:{ wood, powder, metal }, camps, workDrone, skillCD };
+    if (allPlayersCache[myName]) allPlayersCache[myName] = playerSummary({ ...allPlayersCache[myName], ...patch, res:{ wood, powder, metal }, camps, workDrone });
+    scheduleCacheSave(); recalcSupply(); updateInfo(); dirty = true;
+  };
   const apply = e => {
     const { path, data } = JSON.parse(e.data);
-    if (path === "/skillCD" && data && typeof data === "object") {
-      skillCD = { main: data.main || 0, counter: data.counter || 0 };
-      cacheState.player = { ...(cacheState.player || {}), skillCD };
-      scheduleCacheSave(); updateInfo(); dirty = true;
-    } else if (path === "/" && data?.skillCD) {
-      skillCD = { main: data.skillCD.main || 0, counter: data.skillCD.counter || 0 };
-      cacheState.player = { ...(cacheState.player || {}), skillCD };
-      scheduleCacheSave(); updateInfo(); dirty = true;
-    }
+    if (path === "/") applyPatch(data);
+    else if (path === "/res") applyPatch({ res:data });
+    else if (path.startsWith("/res/")) applyPatch({ res:{ ...cacheState.player?.res, [path.slice(5)]:data } });
+    else applyPatch({ [path.slice(1)]:data });
   };
   es.addEventListener("put", apply);
   es.addEventListener("patch", apply);
@@ -1890,7 +1913,7 @@ window.useItem = async id => {
     const targetName = names[ownerAt(selected.x, selected.y)];
     inv.emp--; savePlayer();
     const eUntil = srvNow() + itemDuration(5 * 60000);
-    fetch(`${DB}/gameData/${GAME_ID}/players/${encodeURIComponent(targetName)}/empUntil.json`, { method:"PUT", body:JSON.stringify(eUntil) }).catch(()=>{});
+    patchRemotePlayer(targetName, { empUntil:eUntil }).catch(()=>{});
     toast(`⚡ EMP照射！${targetName} のバリアを${itemDuration(5 * 60000) / 60000}分間完全シャットダウン！`);
   } else if (id === "bunker") {
     if (!selected || !ownerAt(selected.x, selected.y) || ownerAt(selected.x, selected.y) === myId || isAlly(names[ownerAt(selected.x, selected.y)]) || isProtected(names[ownerAt(selected.x, selected.y)])) return toast("🎯 貫通破壊する敵マスを選択してください");
